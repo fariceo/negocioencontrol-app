@@ -5,25 +5,20 @@ import android.content.SharedPreferences
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.background
 import androidx.compose.material3.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.QrCode
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CameraAlt
-import androidx.compose.material3.Icon
-import androidx.compose.material.icons.filled.QrCode
-
-
-
-
+import com.example.negocioencontrol.scanner.ScannerActivity
 
 class MainActivity : ComponentActivity() {
 
@@ -48,12 +43,11 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun MainScreen(onLogout: () -> Unit) {
-
+    val context = LocalContext.current
 
     Column(
         modifier = Modifier.fillMaxSize()
     ) {
-
         // Barra superior
         Box(
             modifier = Modifier
@@ -78,26 +72,26 @@ fun MainScreen(onLogout: () -> Unit) {
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
 
+            // Botón Escanear Producto
             Button(
-                    onClick = { },
-            modifier = Modifier.fillMaxWidth()
+                onClick = {
+                    val intent = Intent(context, ScannerActivity::class.java)
+                    intent.putExtra("nombreBD", "el_nombre_de_tu_base") // Cambia según tu BD
+                    context.startActivity(intent)
+                },
+                modifier = Modifier.fillMaxWidth()
             ) {
-
-            Icon(
-                imageVector = Icons.Filled.QrCode,
-                contentDescription = "Scanner"
-            )
-
-            Spacer(modifier = Modifier.width(8.dp))
-
-            Text("Escanear Producto")
-        }
+                Icon(
+                    imageVector = Icons.Filled.QrCode,
+                    contentDescription = "Scanner"
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Escanear Producto")
+            }
 
             Spacer(modifier = Modifier.weight(1f))
 
-
-            //btn cerrar sesion
-            // Empuja el botón hacia abajo
+            // Botón cerrar sesión
             Spacer(modifier = Modifier.weight(1f))
             Button(
                 onClick = onLogout,
@@ -109,5 +103,4 @@ fun MainScreen(onLogout: () -> Unit) {
             }
         }
     }
-
 }
