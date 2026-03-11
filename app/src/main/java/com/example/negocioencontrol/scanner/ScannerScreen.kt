@@ -22,21 +22,49 @@ import com.google.zxing.integration.android.IntentIntegrator
 import org.json.JSONObject
 
 @Composable
+
 fun ScannerScreen(nombreBD: String, usuario: String) {
 
     val context = LocalContext.current
     var producto by remember { mutableStateOf<Producto?>(null) }
 
+    var carrito by remember { mutableStateOf(mutableListOf<ProductoCarrito>()) }
+
+    val total = carrito.sumOf { it.precio * it.cantidad }
+
+    lateinit var iniciarScanner: () -> Unit
+
     val launcher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
     ) { result ->
+
         val intentResult = IntentIntegrator.parseActivityResult(result.resultCode, result.data)
+
         if (intentResult != null && intentResult.contents != null) {
+
             val codigo = intentResult.contents
+
             buscarProductoAPI(codigo, nombreBD, context) { prod ->
+
                 producto = prod
 
-                // Si el producto existe, agregar al carrito
+                val existente = carrito.find { it.id == prod.id }
+
+                if (existente != null) {
+                    existente.cantidad += 1
+                } else {
+                    carrito.add(
+                        ProductoCarrito(
+                            id = prod.id,
+                            nombre = prod.producto,
+                            precio = prod.precio.toDouble(),
+                            cantidad = 1
+                        )
+                    )
+                }
+
+                carrito = carrito.toMutableList()
+
                 agregarAlCarritoAPI(
                     negocio = nombreBD,
                     usuario = usuario,
@@ -44,10 +72,24 @@ fun ScannerScreen(nombreBD: String, usuario: String) {
                     cantidad = "1",
                     context = context
                 )
+
+                // 👇 volver a abrir el scanner automáticamente
+                iniciarScanner()
             }
+
         } else if (result.resultCode == Activity.RESULT_CANCELED) {
             Toast.makeText(context, "Escaneo cancelado", Toast.LENGTH_SHORT).show()
         }
+    }
+
+    iniciarScanner = {
+        val integrator = IntentIntegrator(context as Activity)
+        integrator.setDesiredBarcodeFormats(IntentIntegrator.ALL_CODE_TYPES)
+        integrator.setPrompt("Escanea el código de barras")
+        integrator.setBeepEnabled(true)
+        integrator.setOrientationLocked(true)
+
+        launcher.launch(integrator.createScanIntent())
     }
 
     Column(
@@ -58,14 +100,7 @@ fun ScannerScreen(nombreBD: String, usuario: String) {
     ) {
 
         Button(
-            onClick = {
-                val integrator = IntentIntegrator(context as Activity)
-                integrator.setDesiredBarcodeFormats(IntentIntegrator.ALL_CODE_TYPES)
-                integrator.setPrompt("Escanea el código de barras")
-                integrator.setBeepEnabled(true)
-                integrator.setOrientationLocked(true)
-                launcher.launch(integrator.createScanIntent())
-            },
+            onClick = { iniciarScanner() },
             modifier = Modifier.fillMaxWidth()
         ) {
             Text("Iniciar Escaneo")
@@ -76,17 +111,21 @@ fun ScannerScreen(nombreBD: String, usuario: String) {
         producto?.let { p ->
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                shape = RoundedCornerShape(12.dp)
             ) {
+
                 Column(modifier = Modifier.padding(16.dp)) {
+
                     Text("Producto: ${p.producto}", fontSize = 18.sp)
                     Text("Precio: $${p.precio}", fontSize = 16.sp)
                     Text("Categoría: ${p.categoria}", fontSize = 16.sp)
                     Text("Stock: ${p.stock}", fontSize = 16.sp)
+
                     if (p.imagen.isNotEmpty()) {
                         Image(
-                            painter = rememberAsyncImagePainter("https://elpollovolantuso.com/negocioencontrol/assets/images/${p.imagen}"),
+                            painter = rememberAsyncImagePainter(
+                                "https://elpollovolantuso.com/negocioencontrol/assets/images/${p.imagen}"
+                            ),
                             contentDescription = p.producto,
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -97,8 +136,40 @@ fun ScannerScreen(nombreBD: String, usuario: String) {
                 }
             }
         }
+
+        Spacer(modifier = Modifier.height(20.dp))
+
+        Text("Carrito", fontSize = 20.sp)
+
+        carrito.forEach { item ->
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(6.dp),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+
+                Text("${item.nombre} x${item.cantidad}")
+
+                Text("$${item.precio * item.cantidad}")
+            }
+        }
+
+        Text(
+            text = "TOTAL: $${total}",
+            fontSize = 22.sp
+        )
+
+
+
+
     }
+
+
 }
+
+
 
 // Modelo de producto
 data class Producto(
@@ -111,6 +182,13 @@ data class Producto(
     val imagen: String
 )
 
+
+data class ProductoCarrito(
+    val id: String,
+    val nombre: String,
+    val precio: Double,
+    var cantidad: Int
+)
 // API para obtener producto
 fun buscarProductoAPI(codigo: String, nombreBD: String, context: Context, onResult: (Producto) -> Unit) {
     val url = "https://elpollovolantuso.com/negocioencontrol/api/buscar_producto_api.php"
