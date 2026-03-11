@@ -20,7 +20,7 @@ import com.android.volley.toolbox.StringRequest
 import com.android.volley.toolbox.Volley
 import com.google.zxing.integration.android.IntentIntegrator
 import org.json.JSONObject
-
+import androidx.compose.foundation.border
 @Composable
 
 fun ScannerScreen(nombreBD: String, usuario: String) {
@@ -152,20 +152,114 @@ fun ScannerScreen(nombreBD: String, usuario: String) {
 
         Spacer(modifier = Modifier.height(20.dp))
 
-        Text("Carrito", fontSize = 20.sp)
+        Text(
+            text = "Carrito",
+            fontSize = 22.sp,
+            style = MaterialTheme.typography.titleLarge
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
 
         carrito.forEach { item ->
 
-            Row(
+            Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(6.dp),
-                horizontalArrangement = Arrangement.SpaceBetween
+                    .padding(vertical = 6.dp),
+                shape = RoundedCornerShape(12.dp),
+                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
             ) {
 
-                Text("${item.nombre} x${item.cantidad}")
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
 
-                Text("$${item.precio * item.cantidad}")
+                    Column {
+
+                        Text(
+                            text = item.nombre,
+                            style = MaterialTheme.typography.titleMedium
+                        )
+
+                        Spacer(modifier = Modifier.height(6.dp))
+
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+
+                            IconButton(
+                                onClick = {
+
+                                    if (item.cantidad > 1) {
+                                        item.cantidad -= 1
+                                    } else {
+                                        carrito.remove(item)
+                                    }
+
+                                    carrito = carrito.toMutableList()
+
+                                }
+                            ) {
+                                Text("-", fontSize = 20.sp)
+                            }
+
+                            Box(
+                                modifier = Modifier
+                                    .padding(horizontal = 6.dp)
+                                    .height(32.dp)
+                                    .width(40.dp)
+                                    .border(
+                                        1.dp,
+                                        MaterialTheme.colorScheme.primary,
+                                        RoundedCornerShape(6.dp)
+                                    ),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "${item.cantidad}",
+                                    style = MaterialTheme.typography.titleMedium
+                                )
+                            }
+
+                            IconButton(
+                                onClick = {
+
+                                    item.cantidad += 1
+                                    carrito = carrito.toMutableList()
+
+                                }
+                            ) {
+                                Text("+", fontSize = 20.sp)
+                            }
+
+                        }
+                    }
+
+                    Column(
+                        horizontalAlignment = Alignment.End
+                    ) {
+
+                        Text(
+                            text = "$${item.precio * item.cantidad}",
+                            style = MaterialTheme.typography.titleMedium
+                        )
+
+                        TextButton(
+                            onClick = {
+
+                                carrito.remove(item)
+                                carrito = carrito.toMutableList()
+
+                            }
+                        ) {
+                            Text("Eliminar")
+                        }
+                    }
+                }
             }
         }
 
@@ -297,5 +391,8 @@ fun agregarAlCarritoAPI(
     }
 
     queue.add(request)
+
+
+
 }
 
