@@ -42,8 +42,12 @@ fun ScannerScreen(nombreBD: String, usuario: String) {
 
         if (intentResult != null && intentResult.contents != null) {
 
-            val codigo = intentResult.contents.trim()
+            val codigo = intentResult.contents?.trim() ?: ""
 
+            if (codigo.isEmpty()) {
+                iniciarScanner()
+                return@rememberLauncherForActivityResult
+            }
             buscarProductoAPI(codigo, nombreBD, context) { prod ->
 
                 if (prod != null) {
