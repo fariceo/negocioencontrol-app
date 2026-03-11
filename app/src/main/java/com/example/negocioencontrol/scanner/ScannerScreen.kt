@@ -54,6 +54,12 @@ fun ScannerScreen(nombreBD: String, usuario: String) {
 
                     producto = prod
 
+                    println("NEGOCIO: $nombreBD")
+                    println("USUARIO: $usuario")
+                    println("ID PRODUCTO: ${prod.id}")
+
+
+
                     val existente = carrito.find { it.id == prod.id }
 
                     if (existente != null) {
@@ -244,7 +250,9 @@ fun buscarProductoAPI(codigo: String, nombreBD: String, context: Context, onResu
     }
 
     queue.add(request)
+
 }
+
 
 // API para agregar al carrito
 fun agregarAlCarritoAPI(
@@ -273,15 +281,21 @@ fun agregarAlCarritoAPI(
         }
     ) {
         override fun getParams(): MutableMap<String, String> {
-            return mutableMapOf(
-                "negocio" to negocio,
-                "usuario" to usuario,
-                "id_producto" to id_producto,
-                "cantidad" to cantidad,
-                "estado" to "1"
-            )
+
+            val params = HashMap<String, String>()
+
+            params["negocio"] = negocio
+            params["usuario"] = usuario
+            params["id_producto"] = id_producto
+            params["cantidad"] = cantidad
+            params["estado"] = "activo"
+
+            println("PARAMS ENVIADOS: $params")
+
+            return params
         }
     }
 
     queue.add(request)
 }
+
