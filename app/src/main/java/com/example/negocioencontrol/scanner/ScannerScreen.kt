@@ -42,38 +42,41 @@ fun ScannerScreen(nombreBD: String, usuario: String) {
 
         if (intentResult != null && intentResult.contents != null) {
 
-            val codigo = intentResult.contents
+            val codigo = intentResult.contents.trim()
 
             buscarProductoAPI(codigo, nombreBD, context) { prod ->
 
-                producto = prod
+                if (prod != null) {
 
-                val existente = carrito.find { it.id == prod.id }
+                    producto = prod
 
-                if (existente != null) {
-                    existente.cantidad += 1
-                } else {
-                    carrito.add(
-                        ProductoCarrito(
-                            id = prod.id,
-                            nombre = prod.producto,
-                            precio = prod.precio.toDouble(),
-                            cantidad = 1
+                    val existente = carrito.find { it.id == prod.id }
+
+                    if (existente != null) {
+                        existente.cantidad += 1
+                    } else {
+                        carrito.add(
+                            ProductoCarrito(
+                                id = prod.id,
+                                nombre = prod.producto,
+                                precio = prod.precio.toDouble(),
+                                cantidad = 1
+                            )
                         )
+                    }
+
+                    carrito = carrito.toMutableList()
+
+                    agregarAlCarritoAPI(
+                        negocio = nombreBD,
+                        usuario = usuario,
+                        id_producto = prod.id,
+                        cantidad = "1",
+                        context = context
                     )
                 }
 
-                carrito = carrito.toMutableList()
-
-                agregarAlCarritoAPI(
-                    negocio = nombreBD,
-                    usuario = usuario,
-                    id_producto = prod.id,
-                    cantidad = "1",
-                    context = context
-                )
-
-                // 👇 volver a abrir el scanner automáticamente
+                // volver a abrir scanner
                 iniciarScanner()
             }
 
@@ -190,7 +193,7 @@ data class ProductoCarrito(
     var cantidad: Int
 )
 // API para obtener producto
-fun buscarProductoAPI(codigo: String, nombreBD: String, context: Context, onResult: (Producto) -> Unit) {
+fun buscarProductoAPI(codigo: String, nombreBD: String, context: Context, onResult: (Producto?) -> Unit) {
     val url = "https://elpollovolantuso.com/negocioencontrol/api/buscar_producto_api.php"
     val queue = Volley.newRequestQueue(context)
 
@@ -200,7 +203,9 @@ fun buscarProductoAPI(codigo: String, nombreBD: String, context: Context, onResu
             try {
                 val json = JSONObject(response)
                 if (json.getBoolean("success")) {
+
                     val prodJson = json.getJSONObject("producto")
+
                     val producto = Producto(
                         id = prodJson.getString("id_producto"),
                         codigo = prodJson.getString("codigo_barra"),
@@ -210,10 +215,13 @@ fun buscarProductoAPI(codigo: String, nombreBD: String, context: Context, onResu
                         stock = prodJson.getString("stock_inicial"),
                         imagen = prodJson.getString("imagen")
                     )
+
                     onResult(producto)
+
                 } else {
                     Toast.makeText(context, json.getString("msg"), Toast.LENGTH_SHORT).show()
-                }
+
+                    onResult(null)                }
             } catch (e: Exception) {
                 e.printStackTrace()
             }
