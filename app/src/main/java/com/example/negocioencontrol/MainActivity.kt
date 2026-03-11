@@ -9,15 +9,14 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.QrCode
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.QrCode
 import com.example.negocioencontrol.scanner.ScannerActivity
 
 class MainActivity : ComponentActivity() {
@@ -30,24 +29,26 @@ class MainActivity : ComponentActivity() {
         prefs = getSharedPreferences("sesion", MODE_PRIVATE)
 
         setContent {
-            MainScreen {
-                // Cerrar sesión
-                prefs.edit().clear().apply()
-                val intent = Intent(this, LoginScreen::class.java)
-                intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-                startActivity(intent)
-            }
+            MainScreen(
+                onScanClick = {
+                    val intent = Intent(this, ScannerActivity::class.java)
+                    startActivity(intent)
+                },
+                onLogout = {
+                    prefs.edit().clear().apply()
+                    val intent = Intent(this, LoginScreen::class.java)
+                    intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                    startActivity(intent)
+                }
+            )
         }
     }
 }
 
 @Composable
-fun MainScreen(onLogout: () -> Unit) {
-    val context = LocalContext.current
+fun MainScreen(onScanClick: () -> Unit, onLogout: () -> Unit) {
+    Column(modifier = Modifier.fillMaxSize()) {
 
-    Column(
-        modifier = Modifier.fillMaxSize()
-    ) {
         // Barra superior
         Box(
             modifier = Modifier
@@ -72,27 +73,15 @@ fun MainScreen(onLogout: () -> Unit) {
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
 
-            // Botón Escanear Producto
             Button(
-                onClick = {
-                    val intent = Intent(context, ScannerActivity::class.java)
-                    intent.putExtra("nombreBD", "el_nombre_de_tu_base") // Cambia según tu BD
-                    context.startActivity(intent)
-                },
+                onClick = onScanClick,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Icon(
-                    imageVector = Icons.Filled.QrCode,
-                    contentDescription = "Scanner"
-                )
-                Spacer(modifier = Modifier.width(8.dp))
                 Text("Escanear Producto")
             }
 
             Spacer(modifier = Modifier.weight(1f))
 
-            // Botón cerrar sesión
-            Spacer(modifier = Modifier.weight(1f))
             Button(
                 onClick = onLogout,
                 modifier = Modifier.fillMaxWidth(),

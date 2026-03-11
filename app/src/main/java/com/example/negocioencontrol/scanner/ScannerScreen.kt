@@ -22,12 +22,11 @@ import com.google.zxing.integration.android.IntentIntegrator
 import org.json.JSONObject
 
 @Composable
-fun ScannerScreen(nombreBD: String) {
+fun ScannerScreen(nombreBD: String, usuario: String) {
 
     val context = LocalContext.current
     var producto by remember { mutableStateOf<Producto?>(null) }
 
-    // Launcher para ZXing
     val launcher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
     ) { result ->
@@ -36,6 +35,15 @@ fun ScannerScreen(nombreBD: String) {
             val codigo = intentResult.contents
             buscarProductoAPI(codigo, nombreBD, context) { prod ->
                 producto = prod
+
+                // Si el producto existe, agregar al carrito
+                agregarAlCarritoAPI(
+                    negocio = nombreBD,
+                    usuario = usuario,
+                    id_producto = prod.id,
+                    cantidad = "1",
+                    context = context
+                )
             }
         } else if (result.resultCode == Activity.RESULT_CANCELED) {
             Toast.makeText(context, "Escaneo cancelado", Toast.LENGTH_SHORT).show()
@@ -65,7 +73,6 @@ fun ScannerScreen(nombreBD: String) {
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Mostrar producto
         producto?.let { p ->
             Card(
                 modifier = Modifier.fillMaxWidth(),
@@ -104,7 +111,7 @@ data class Producto(
     val imagen: String
 )
 
-// Llamada a API
+// API para obtener producto
 fun buscarProductoAPI(codigo: String, nombreBD: String, context: Context, onResult: (Producto) -> Unit) {
     val url = "https://elpollovolantuso.com/negocioencontrol/api/buscar_producto_api.php"
     val queue = Volley.newRequestQueue(context)
@@ -142,6 +149,46 @@ fun buscarProductoAPI(codigo: String, nombreBD: String, context: Context, onResu
             return mutableMapOf(
                 "codigo" to codigo,
                 "nombre_bd" to nombreBD
+            )
+        }
+    }
+
+    queue.add(request)
+}
+
+// API para agregar al carrito
+fun agregarAlCarritoAPI(
+    negocio: String,
+    usuario: String,
+    id_producto: String,
+    cantidad: String,
+    context: Context
+) {
+    val url = "https://elpollovolantuso.com/negocioencontrol/api/agregar_carrito_api.php"
+    val queue = Volley.newRequestQueue(context)
+
+    val request = object : StringRequest(
+        Method.POST, url,
+        { response ->
+            try {
+                val json = JSONObject(response)
+                Toast.makeText(context, json.getString("msg"), Toast.LENGTH_SHORT).show()
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        },
+        { error ->
+            error.printStackTrace()
+            Toast.makeText(context, "Error al agregar al carrito", Toast.LENGTH_SHORT).show()
+        }
+    ) {
+        override fun getParams(): MutableMap<String, String> {
+            return mutableMapOf(
+                "negocio" to negocio,
+                "usuario" to usuario,
+                "id_producto" to id_producto,
+                "cantidad" to cantidad,
+                "estado" to "1"
             )
         }
     }
