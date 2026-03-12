@@ -140,9 +140,14 @@ fun ScannerScreen(nombreBD: String, usuario: String) {
                     ) {
                         // Información del producto y control de cantidad
                         Column {
+
                             Text(item.nombre, style = MaterialTheme.typography.titleMedium)
                             Spacer(modifier = Modifier.height(6.dp))
 
+                            Text(
+                                "Precio unitario: $${"%.2f".format(item.precio)}",
+                                style = MaterialTheme.typography.bodyMedium
+                            )
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 // Botón "-" decrementa cantidad
                                 IconButton(
@@ -182,8 +187,10 @@ fun ScannerScreen(nombreBD: String, usuario: String) {
 
                         // Precio total y botón eliminar
                         Column(horizontalAlignment = Alignment.End) {
-                            Text("$${item.precio * item.cantidad}", style = MaterialTheme.typography.titleMedium)
-
+                            Text(
+                                "$${"%.2f".format(item.precio * item.cantidad)}",
+                                style = MaterialTheme.typography.titleMedium
+                            )
                             // Botón eliminar: envía cantidad=0 a la API
                             TextButton(
                                 onClick = {
@@ -198,7 +205,11 @@ fun ScannerScreen(nombreBD: String, usuario: String) {
             }
         }
         Spacer(modifier = Modifier.height(8.dp))
-        Text("TOTAL: $${total}", fontSize = 22.sp)
+
+        Text(
+            "TOTAL: $${"%.2f".format(total)}",
+            fontSize = 22.sp
+        )
     }
 }
 
