@@ -114,6 +114,7 @@ fun LoginScreenContent(
                                     putInt("id_usuario", idUsuario)
                                     putString("nombre_negocio", nombreNegocio)
                                     putString("nombre_bd", nombreBD)
+                                    putString("correo_usuario", correo)
                                     apply()
                                 }
 

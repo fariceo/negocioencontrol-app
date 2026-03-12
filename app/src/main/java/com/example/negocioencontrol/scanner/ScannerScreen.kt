@@ -30,6 +30,8 @@ fun ScannerScreen(nombreBD: String, usuario: String) {
     var producto by remember { mutableStateOf<Producto?>(null) }
     var carrito by remember { mutableStateOf(mutableListOf<ProductoCarrito>()) }
 
+    val prefs = context.getSharedPreferences("sesion", Context.MODE_PRIVATE)
+    val usuario = prefs.getString("correo_usuario", "") ?: ""
     val total = carrito.sumOf { it.precio * it.cantidad }
 
     // Función para recargar carrito desde BD
@@ -136,25 +138,23 @@ fun ScannerScreen(nombreBD: String, usuario: String) {
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
+                        // Información del producto y control de cantidad
                         Column {
                             Text(item.nombre, style = MaterialTheme.typography.titleMedium)
                             Spacer(modifier = Modifier.height(6.dp))
 
                             Row(verticalAlignment = Alignment.CenterVertically) {
+                                // Botón "-" decrementa cantidad
                                 IconButton(
                                     onClick = {
-                                        if (item.cantidad > 1) {
-                                            actualizarCantidadCarritoAPI(
-                                                nombreBD, usuario, item.id, (item.cantidad - 1).toString(), context
-                                            ) { recargarCarrito() }
-                                        } else {
-                                            eliminarProductoCarritoAPI(
-                                                nombreBD, usuario, item.id, context
-                                            ) { recargarCarrito() }
-                                        }
+                                        val nuevaCantidad = item.cantidad - 1
+                                        actualizarCantidadCarritoAPI(
+                                            nombreBD, usuario, item.id, nuevaCantidad, context
+                                        ) { recargarCarrito() }
                                     }
                                 ) { Text("-", fontSize = 20.sp) }
 
+                                // Cantidad actual
                                 Box(
                                     modifier = Modifier
                                         .padding(horizontal = 6.dp)
@@ -168,27 +168,35 @@ fun ScannerScreen(nombreBD: String, usuario: String) {
                                     contentAlignment = Alignment.Center
                                 ) { Text("${item.cantidad}", style = MaterialTheme.typography.titleMedium) }
 
+                                // Botón "+" incrementa cantidad
                                 IconButton(
                                     onClick = {
+                                        val nuevaCantidad = item.cantidad + 1
                                         actualizarCantidadCarritoAPI(
-                                            nombreBD, usuario, item.id, (item.cantidad + 1).toString(), context
+                                            nombreBD, usuario, item.id, nuevaCantidad, context
                                         ) { recargarCarrito() }
                                     }
                                 ) { Text("+", fontSize = 20.sp) }
                             }
                         }
 
+                        // Precio total y botón eliminar
                         Column(horizontalAlignment = Alignment.End) {
                             Text("$${item.precio * item.cantidad}", style = MaterialTheme.typography.titleMedium)
+
+                            // Botón eliminar: envía cantidad=0 a la API
                             TextButton(
-                                onClick = { eliminarProductoCarritoAPI(nombreBD, usuario, item.id, context) { recargarCarrito() } }
+                                onClick = {
+                                    actualizarCantidadCarritoAPI(
+                                        nombreBD, usuario, item.id, 0, context
+                                    ) { recargarCarrito() }
+                                }
                             ) { Text("Eliminar") }
                         }
                     }
                 }
             }
         }
-
         Spacer(modifier = Modifier.height(8.dp))
         Text("TOTAL: $${total}", fontSize = 22.sp)
     }
@@ -273,23 +281,49 @@ fun agregarAlCarritoAPI(negocio: String, usuario: String, id_producto: String, c
     queue.add(request)
 }
 
-fun actualizarCantidadCarritoAPI(negocio: String, usuario: String, id_producto: String, cantidad: String, context: Context, onResult: () -> Unit) {
+fun actualizarCantidadCarritoAPI(
+    negocio: String,
+    usuario: String,
+    id_producto: String,
+    nuevaCantidad: Int,
+    context: Context,
+    onResult: () -> Unit
+) {
     val url = "https://elpollovolantuso.com/negocioencontrol/api/actualizar_cantidad_carrito_api.php"
     val queue = Volley.newRequestQueue(context)
+
+    // Evitar enviar cantidades negativas
+    if (nuevaCantidad < 0) return
+
     val request = object : StringRequest(Method.POST, url,
-        { onResult() },
-        { error -> error.printStackTrace(); Toast.makeText(context, "Error al actualizar cantidad", Toast.LENGTH_SHORT).show() }
+        { response ->
+            try {
+                val json = JSONObject(response)
+                if (json.getBoolean("success")) {
+                    onResult() // recargar carrito
+                } else {
+                    Toast.makeText(context, json.getString("msg"), Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                Toast.makeText(context, "Respuesta inválida del servidor", Toast.LENGTH_SHORT).show()
+            }
+        },
+        { error ->
+            error.printStackTrace()
+            Toast.makeText(context, "Error al actualizar carrito", Toast.LENGTH_SHORT).show()
+        }
     ) {
         override fun getParams(): MutableMap<String, String> = hashMapOf(
             "negocio" to negocio,
             "usuario" to usuario,
             "id_producto" to id_producto,
-            "cantidad" to cantidad
+            "cantidad" to nuevaCantidad.toString()
         )
     }
+
     queue.add(request)
 }
-
 fun eliminarProductoCarritoAPI(negocio: String, usuario: String, id_producto: String, context: Context, onResult: () -> Unit) {
     val url = "https://elpollovolantuso.com/negocioencontrol/api/eliminar_producto_carrito_api.php"
     val queue = Volley.newRequestQueue(context)
