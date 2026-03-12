@@ -5,6 +5,7 @@ import android.content.SharedPreferences
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
@@ -14,6 +15,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.QrCode
+import com.example.negocioencontrol.scanner.ScannerActivity
 
 class MainActivity : ComponentActivity() {
 
@@ -25,35 +29,67 @@ class MainActivity : ComponentActivity() {
         prefs = getSharedPreferences("sesion", MODE_PRIVATE)
 
         setContent {
-            MainScreen {
-                // Cerrar sesión
-                prefs.edit().clear().apply()
-                val intent = Intent(this, LoginScreen::class.java)
-                intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-                startActivity(intent)
-            }
+            MainScreen(
+                onScanClick = {
+                    val intent = Intent(this, ScannerActivity::class.java)
+                    startActivity(intent)
+                },
+                onLogout = {
+                    prefs.edit().clear().apply()
+                    val intent = Intent(this, LoginScreen::class.java)
+                    intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                    startActivity(intent)
+                }
+            )
         }
     }
 }
 
 @Composable
-fun MainScreen(onLogout: () -> Unit) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(24.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Text("Pantalla Principal", fontSize = 24.sp)
+fun MainScreen(onScanClick: () -> Unit, onLogout: () -> Unit) {
+    Column(modifier = Modifier.fillMaxSize()) {
 
-        Button(
-            onClick = onLogout,
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(12.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
+        // Barra superior
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(Color(0xFF0D1B2A))
+                .padding(16.dp)
         ) {
-            Text("Cerrar Sesión", color = Color.White, fontSize = 18.sp)
+            Text(
+                text = "NEGOCIO EN CONTROL",
+                color = Color.White,
+                fontSize = 24.sp,
+                modifier = Modifier.align(Alignment.Center)
+            )
+        }
+
+        // Contenido
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(24.dp)
+                .background(Color(0xFF0D1B2A)),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+
+            Button(
+                onClick = onScanClick,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Escanear Producto")
+            }
+
+            Spacer(modifier = Modifier.weight(1f))
+
+            Button(
+                onClick = onLogout,
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
+            ) {
+                Text("Cerrar Sesión", color = Color.White, fontSize = 18.sp)
+            }
         }
     }
 }

@@ -32,7 +32,7 @@ class LoginScreen : ComponentActivity() {
         val logueado = prefs.getBoolean("logueado", false)
         val tiempoLogin = prefs.getLong("tiempo_login", 0)
         val tiempoActual = System.currentTimeMillis()
-        val cincoMinutos = 5 * 60 * 1000
+        val cincoMinutos = 59 * 60 * 1000
 
         if (logueado && tiempoActual - tiempoLogin < cincoMinutos) {
             startActivity(Intent(this, MainActivity::class.java))
@@ -114,6 +114,7 @@ fun LoginScreenContent(
                                     putInt("id_usuario", idUsuario)
                                     putString("nombre_negocio", nombreNegocio)
                                     putString("nombre_bd", nombreBD)
+                                    putString("correo_usuario", correo)
                                     apply()
                                 }
 
