@@ -8,8 +8,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -23,12 +22,30 @@ import com.android.volley.toolbox.StringRequest
 import com.android.volley.toolbox.Volley
 import com.google.zxing.integration.android.IntentIntegrator
 import org.json.JSONObject
+import org.json.JSONArray
 
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
+import coil.compose.AsyncImage
+import androidx.compose.ui.draw.clip
+
+
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ScannerScreen(nombreBD: String, usuario: String) {
+fun ScannerScreen(nombreBD: String) {
+
     val context = LocalContext.current
     var producto by remember { mutableStateOf<Producto?>(null) }
     var carrito by remember { mutableStateOf(mutableListOf<ProductoCarrito>()) }
+    var cliente by remember { mutableStateOf("") }
+    var metodoPago by remember { mutableStateOf("Efectivo") }
 
     val prefs = context.getSharedPreferences("sesion", Context.MODE_PRIVATE)
     val usuario = prefs.getString("correo_usuario", "") ?: ""
@@ -83,15 +100,27 @@ fun ScannerScreen(nombreBD: String, usuario: String) {
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .verticalScroll(rememberScrollState())
             .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
+
+
 
         Button(onClick = { iniciarScanner() }, modifier = Modifier.fillMaxWidth()) {
             Text("Iniciar Escaneo")
         }
 
         Spacer(modifier = Modifier.height(16.dp))
+
+        BusquedaManualProductoPanel(
+            nombreBD = nombreBD,
+            usuario = usuario,
+            recargarCarrito = { recargarCarrito() }
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
 
         producto?.let { p ->
             Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp)) {
@@ -121,9 +150,12 @@ fun ScannerScreen(nombreBD: String, usuario: String) {
 
         Text("Carrito", fontSize = 22.sp, style = MaterialTheme.typography.titleLarge)
         Spacer(modifier = Modifier.height(8.dp))
+        Column(
+            modifier = Modifier.fillMaxWidth()
+        ) {
 
-        LazyColumn(modifier = Modifier.fillMaxHeight(0.7f)) {
-            items(carrito) { item ->
+            carrito.forEach { item ->
+
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -131,6 +163,7 @@ fun ScannerScreen(nombreBD: String, usuario: String) {
                     shape = RoundedCornerShape(12.dp),
                     elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
                 ) {
+
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -138,18 +171,22 @@ fun ScannerScreen(nombreBD: String, usuario: String) {
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
+
                         // Información del producto y control de cantidad
                         Column {
 
                             Text(item.nombre, style = MaterialTheme.typography.titleMedium)
+
                             Spacer(modifier = Modifier.height(6.dp))
 
                             Text(
                                 "Precio unitario: $${"%.2f".format(item.precio)}",
                                 style = MaterialTheme.typography.bodyMedium
                             )
+
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                // Botón "-" decrementa cantidad
+
+                                // Botón "-"
                                 IconButton(
                                     onClick = {
                                         val nuevaCantidad = item.cantidad - 1
@@ -157,9 +194,11 @@ fun ScannerScreen(nombreBD: String, usuario: String) {
                                             nombreBD, usuario, item.id, nuevaCantidad, context
                                         ) { recargarCarrito() }
                                     }
-                                ) { Text("-", fontSize = 20.sp) }
+                                ) {
+                                    Text("-", fontSize = 20.sp)
+                                }
 
-                                // Cantidad actual
+                                // Cantidad
                                 Box(
                                     modifier = Modifier
                                         .padding(horizontal = 6.dp)
@@ -171,9 +210,11 @@ fun ScannerScreen(nombreBD: String, usuario: String) {
                                             RoundedCornerShape(6.dp)
                                         ),
                                     contentAlignment = Alignment.Center
-                                ) { Text("${item.cantidad}", style = MaterialTheme.typography.titleMedium) }
+                                ) {
+                                    Text("${item.cantidad}", style = MaterialTheme.typography.titleMedium)
+                                }
 
-                                // Botón "+" incrementa cantidad
+                                // Botón "+"
                                 IconButton(
                                     onClick = {
                                         val nuevaCantidad = item.cantidad + 1
@@ -181,28 +222,40 @@ fun ScannerScreen(nombreBD: String, usuario: String) {
                                             nombreBD, usuario, item.id, nuevaCantidad, context
                                         ) { recargarCarrito() }
                                     }
-                                ) { Text("+", fontSize = 20.sp) }
+                                ) {
+                                    Text("+", fontSize = 20.sp)
+                                }
+
                             }
+
                         }
 
-                        // Precio total y botón eliminar
+                        // Precio total y eliminar
                         Column(horizontalAlignment = Alignment.End) {
+
                             Text(
                                 "$${"%.2f".format(item.precio * item.cantidad)}",
                                 style = MaterialTheme.typography.titleMedium
                             )
-                            // Botón eliminar: envía cantidad=0 a la API
+
                             TextButton(
                                 onClick = {
                                     actualizarCantidadCarritoAPI(
                                         nombreBD, usuario, item.id, 0, context
                                     ) { recargarCarrito() }
                                 }
-                            ) { Text("Eliminar") }
+                            ) {
+                                Text("Eliminar")
+                            }
+
                         }
+
                     }
+
                 }
+
             }
+
         }
         Spacer(modifier = Modifier.height(8.dp))
 
@@ -210,10 +263,321 @@ fun ScannerScreen(nombreBD: String, usuario: String) {
             "TOTAL: $${"%.2f".format(total)}",
             fontSize = 22.sp
         )
+
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        DatosCompraScreen(
+            nombreBD = nombreBD,
+            usuario = usuario,
+            carrito = carrito,
+            total = total
+        )
+
+    }
+
+
+}
+@Composable
+fun BusquedaManualProductoPanel(
+    nombreBD: String,
+    usuario: String,
+    recargarCarrito: () -> Unit
+) {
+
+    var mostrarBusqueda by remember { mutableStateOf(false) }
+
+    Column {
+
+        Button(
+            onClick = { mostrarBusqueda = !mostrarBusqueda },
+            modifier = Modifier.padding(16.dp)
+        ) {
+            Text(
+                if (mostrarBusqueda)
+                    "Ocultar búsqueda"
+                else
+                    "Buscar producto manual"
+            )
+        }
+
+        AnimatedVisibility(
+            visible = mostrarBusqueda,
+            enter = expandVertically(),
+            exit = shrinkVertically()
+        ) {
+
+            BusquedaManualProducto(
+                nombreBD = nombreBD,
+                usuario = usuario,
+                recargarCarrito = { recargarCarrito() },
+                onClose = { mostrarBusqueda = false }
+            )
+
+        }
+
     }
 }
 
-// ---------------- MODELOS ----------------
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun BusquedaManualProducto(
+    nombreBD: String,
+    usuario: String,
+    recargarCarrito: () -> Unit,
+    onClose: () -> Unit
+) {
+
+    val context = LocalContext.current
+
+    var textoBusqueda by remember { mutableStateOf("") }
+    var resultados by remember { mutableStateOf<List<Producto>>(emptyList()) }
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp),
+        shape = RoundedCornerShape(12.dp),
+        elevation = CardDefaults.cardElevation(6.dp)
+    ) {
+
+        Column(modifier = Modifier.padding(16.dp)) {
+
+            Text(
+                "Buscar producto manualmente",
+                style = MaterialTheme.typography.titleMedium
+            )
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            Row {
+
+                OutlinedTextField(
+                    value = textoBusqueda,
+                    onValueChange = {
+
+                        textoBusqueda = it
+
+                        if (it.length >= 2) {
+
+                            buscarProductoManualAPI(
+                                it,
+                                nombreBD,
+                                context
+                            ) { lista ->
+
+                                resultados = lista
+
+                            }
+
+                        } else {
+
+                            resultados = emptyList()
+
+                        }
+
+                    },
+                    label = { Text("Código o nombre") },
+                    modifier = Modifier.weight(1f)
+                )
+
+                Spacer(modifier = Modifier.width(8.dp))
+
+                Button(
+                    onClick = {
+
+                        buscarProductoManualAPI(
+                            textoBusqueda,
+                            nombreBD,
+                            context
+                        ) { lista ->
+
+                            resultados = lista
+
+                        }
+
+                    }
+                ) {
+                    Text("Buscar")
+                }
+
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(200.dp)
+            ) {
+
+                items(resultados) { prod ->
+
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp),
+                        elevation = CardDefaults.cardElevation(4.dp)
+                    ) {
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+
+                            val imagenFinal =
+                                if (prod.imagen.startsWith("http"))
+                                    prod.imagen
+                                else
+                                    "https://elpollovolantuso.com/negocioencontrol/assets/images/${prod.imagen}"
+
+                            AsyncImage(
+                                model = imagenFinal,
+                                contentDescription = prod.producto,
+                                modifier = Modifier
+                                    .size(60.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                            )
+
+                            Spacer(modifier = Modifier.width(10.dp))
+
+                            Column(
+                                modifier = Modifier.weight(1f)
+                            ) {
+
+                                Text(
+                                    prod.producto,
+                                    style = MaterialTheme.typography.titleMedium
+                                )
+
+                                Text(
+                                    "Stock: ${prod.stock}",
+                                    style = MaterialTheme.typography.bodySmall
+                                )
+
+                                Text(
+                                    "$${prod.precio}",
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
+
+                            }
+
+                            Button(
+                                onClick = {
+
+                                    agregarAlCarritoAPI(
+                                        nombreBD,
+                                        usuario,
+                                        prod.id,
+                                        "1",
+                                        context
+                                    ) {
+
+                                        recargarCarrito()
+                                        onClose()
+
+                                    }
+
+                                }
+                            ) {
+                                Text("Agregar")
+                            }
+
+                        }
+
+                    }
+
+                }
+
+            }
+
+        }
+
+    }
+
+}
+
+
+fun buscarProductoManualAPI(
+    texto: String,
+    nombreBD: String,
+    context: Context,
+    callback: (List<Producto>) -> Unit
+) {
+
+    val url = "https://elpollovolantuso.com/negocioencontrol/api/buscar_producto_manual_api.php"
+
+    val queue = Volley.newRequestQueue(context)
+
+    val request = object : StringRequest(
+        Method.POST,
+        url,
+        { response ->
+
+            try {
+
+                val lista = mutableListOf<Producto>()
+                val json = JSONArray(response)
+
+                for (i in 0 until json.length()) {
+
+                    val obj = json.getJSONObject(i)
+
+                    lista.add(
+                        Producto(
+                            id = obj.getString("id_producto"),
+                            codigo = obj.optString("codigo_barra", ""),
+                            producto = obj.getString("producto"),
+                            precio = obj.getString("precio"),
+                            categoria = obj.optString("categoria", ""),
+                            stock = obj.optString("stock_inicial", "0"),
+                            imagen = obj.optString("imagen", "")
+                        )
+                    )
+
+                }
+
+                callback(lista)
+
+            } catch (e: Exception) {
+
+                Toast.makeText(
+                    context,
+                    "Error JSON: ${e.message}",
+                    Toast.LENGTH_LONG
+                ).show()
+
+            }
+
+        },
+        { error ->
+
+            Toast.makeText(
+                context,
+                "Error conexión: ${error.networkResponse?.statusCode ?: error.message}",
+                Toast.LENGTH_LONG
+            ).show()
+
+        }
+    ) {
+
+        override fun getParams(): MutableMap<String, String> {
+
+            return hashMapOf(
+                "nombre_bd" to nombreBD,
+                "texto" to texto
+            )
+
+        }
+
+    }
+
+    queue.add(request)
+
+}// ---------------- MODELOS ----------------
 data class Producto(
     val id: String,
     val codigo: String,
@@ -384,4 +748,270 @@ fun obtenerCarritoAPI(negocio: String, usuario: String, context: Context, onResu
         )
     }
     queue.add(request)
+
+
+
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun DatosCompraScreen(
+    nombreBD: String,
+    usuario: String,
+    carrito: List<ProductoCarrito>,
+    total: Double
+) {
+
+    val context = LocalContext.current
+
+    var cliente by remember { mutableStateOf("") }
+    var correo by remember { mutableStateOf("") }
+    var telefono by remember { mutableStateOf("") }
+    var direccion by remember { mutableStateOf("") }
+    var ruc by remember { mutableStateOf("") }
+
+    var metodoPago by remember { mutableStateOf("") }
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp),
+        shape = RoundedCornerShape(12.dp),
+        elevation = CardDefaults.cardElevation(6.dp)
+    ) {
+
+        Column(modifier = Modifier.padding(16.dp)) {
+
+            Text(
+                "Datos de la compra",
+                style = MaterialTheme.typography.titleLarge
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            OutlinedTextField(
+                value = cliente,
+                onValueChange = { cliente = it },
+                label = { Text("Cliente (opcional)") },
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            OutlinedTextField(
+                value = correo,
+                onValueChange = { correo = it },
+                label = { Text("Correo electrónico") },
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            OutlinedTextField(
+                value = telefono,
+                onValueChange = { telefono = it },
+                label = { Text("Teléfono") },
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            OutlinedTextField(
+                value = direccion,
+                onValueChange = { direccion = it },
+                label = { Text("Dirección") },
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            OutlinedTextField(
+                value = ruc,
+                onValueChange = { ruc = it },
+                label = { Text("RUC / Cédula") },
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Text("Método de pago")
+
+            Column {
+
+                Row(verticalAlignment = Alignment.CenterVertically) {
+
+                    RadioButton(
+                        selected = metodoPago == "Efectivo",
+                        onClick = { metodoPago = "Efectivo" }
+                    )
+
+                    Text("Efectivo")
+                }
+
+                Row(verticalAlignment = Alignment.CenterVertically) {
+
+                    RadioButton(
+                        selected = metodoPago == "Tarjeta",
+                        onClick = { metodoPago = "Tarjeta" }
+                    )
+
+                    Text("Tarjeta")
+                }
+
+                Row(verticalAlignment = Alignment.CenterVertically) {
+
+                    RadioButton(
+                        selected = metodoPago == "Transferencia",
+                        onClick = { metodoPago = "Transferencia" }
+                    )
+
+                    Text("Transferencia")
+                }
+
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Text(
+                "TOTAL: $${"%.2f".format(total)}",
+                style = MaterialTheme.typography.titleLarge
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Button(
+                onClick = {
+
+                    if (carrito.isEmpty()) {
+
+                        Toast.makeText(
+                            context,
+                            "El carrito está vacío",
+                            Toast.LENGTH_SHORT
+                        ).show()
+
+                        return@Button
+                    }
+
+                    if (metodoPago.isBlank()) {
+
+                        Toast.makeText(
+                            context,
+                            "Seleccione método de pago",
+                            Toast.LENGTH_SHORT
+                        ).show()
+
+                        return@Button
+                    }
+
+                    val clienteFinal = if (cliente.isBlank()) {
+                        "MOSTRADOR-${System.currentTimeMillis()}"
+                    } else {
+                        cliente
+                    }
+
+                    registrarVentaAPI(
+                        negocio = nombreBD,
+                        vendedor = usuario,
+                        cliente = clienteFinal,
+                        correo = correo,
+                        telefono = telefono,
+                        direccion = direccion,
+                        ruc = ruc,
+                        carrito = carrito,
+                        total = total,
+                        metodoPago = metodoPago,
+                        context = context
+                    )
+
+                },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+
+                Text("FINALIZAR COMPRA")
+
+            }
+
+        }
+
+    }
+
+}
+fun registrarVentaAPI(
+    negocio: String,
+    vendedor: String,
+    cliente: String,
+    correo: String,
+    telefono: String,
+    direccion: String,
+    ruc: String,
+    carrito: List<ProductoCarrito>,
+    total: Double,
+    metodoPago: String,
+    context: Context
+) {
+
+    val url = "https://elpollovolantuso.com/negocioencontrol/api/registrar_venta_api.php"
+
+    val queue = Volley.newRequestQueue(context)
+
+    val productosJSON = org.json.JSONArray()
+
+    carrito.forEach {
+
+        val obj = org.json.JSONObject()
+
+        obj.put("producto", it.nombre)
+        obj.put("precio", it.precio)
+        obj.put("cantidad", it.cantidad)
+        obj.put("total", it.precio * it.cantidad)
+
+        productosJSON.put(obj)
+
+    }
+
+    val request = object : StringRequest(Method.POST, url,
+        { response ->
+
+            Toast.makeText(
+                context,
+                "Venta registrada correctamente",
+                Toast.LENGTH_LONG
+            ).show()
+
+        },
+        { error ->
+
+            error.printStackTrace()
+
+            Toast.makeText(
+                context,
+                "Error al registrar venta",
+                Toast.LENGTH_SHORT
+            ).show()
+
+        }
+    ) {
+
+        override fun getParams(): MutableMap<String, String> {
+
+            return hashMapOf(
+                "negocio" to negocio,
+                "vendedor" to vendedor,
+                "cliente" to cliente,
+                "correo" to correo,
+                "telefono" to telefono,
+                "direccion" to direccion,
+                "ruc" to ruc,
+                "productos" to productosJSON.toString(),
+                "total" to total.toString(),
+                "metodo_pago" to metodoPago
+            )
+
+        }
+
+    }
+
+    queue.add(request)
+
 }

@@ -18,7 +18,7 @@ class ScannerActivity : ComponentActivity() {
         val usuario = prefs.getString("usuario", "") ?: ""
 
         setContent {
-            ScannerScreen(nombreBD = nombreBD, usuario = usuario)
+            ScannerScreen(nombreBD = nombreBD)
         }
     }
 }
