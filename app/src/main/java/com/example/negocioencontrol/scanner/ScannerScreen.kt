@@ -35,7 +35,8 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import coil.compose.AsyncImage
 import androidx.compose.ui.draw.clip
-
+import android.content.Intent
+import com.example.negocioencontrol.MainActivity
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -883,11 +884,21 @@ fun DatosCompraScreen(
                 onClick = {
 
                     if (carrito.isEmpty()) {
+                        Toast.makeText(context,"El carrito está vacío",Toast.LENGTH_SHORT).show()
+                        return@Button
+                    }
+
+                    if (
+                        correo.isBlank() ||
+                        telefono.isBlank() ||
+                        direccion.isBlank() ||
+                        ruc.isBlank()
+                    ) {
 
                         Toast.makeText(
                             context,
-                            "El carrito está vacío",
-                            Toast.LENGTH_SHORT
+                            "Complete todos los datos del cliente",
+                            Toast.LENGTH_LONG
                         ).show()
 
                         return@Button
@@ -904,16 +915,10 @@ fun DatosCompraScreen(
                         return@Button
                     }
 
-                    val clienteFinal = if (cliente.isBlank()) {
-                        "MOSTRADOR-${System.currentTimeMillis()}"
-                    } else {
-                        cliente
-                    }
-
                     registrarVentaAPI(
                         negocio = nombreBD,
                         vendedor = usuario,
-                        cliente = clienteFinal,
+                        cliente = cliente,
                         correo = correo,
                         telefono = telefono,
                         direccion = direccion,
@@ -927,9 +932,7 @@ fun DatosCompraScreen(
                 },
                 modifier = Modifier.fillMaxWidth()
             ) {
-
                 Text("FINALIZAR COMPRA")
-
             }
 
         }
@@ -973,11 +976,33 @@ fun registrarVentaAPI(
     val request = object : StringRequest(Method.POST, url,
         { response ->
 
-            Toast.makeText(
-                context,
-                "Venta registrada correctamente",
-                Toast.LENGTH_LONG
-            ).show()
+            println("RESPUESTA SERVER: $response")
+            try {
+
+                val json = JSONObject(response)
+
+                if(json.getBoolean("success")){
+
+                    eliminarCarritoUsuario(
+                        negocio,
+                        vendedor,
+                        context
+                    )
+
+                    Toast.makeText(
+                        context,
+                        "Venta registrada correctamente",
+                        Toast.LENGTH_LONG
+                    ).show()
+
+                    val intent = Intent(context, MainActivity::class.java)
+                    intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                    context.startActivity(intent)
+                }
+
+            }catch (e:Exception){
+                e.printStackTrace()
+            }
 
         },
         { error ->
@@ -1006,6 +1031,37 @@ fun registrarVentaAPI(
                 "productos" to productosJSON.toString(),
                 "total" to total.toString(),
                 "metodo_pago" to metodoPago
+            )
+
+        }
+
+    }
+
+    queue.add(request)
+
+}
+
+
+fun eliminarCarritoUsuario(
+    negocio:String,
+    usuario:String,
+    context: Context
+){
+
+    val url="https://elpollovolantuso.com/negocioencontrol/api/eliminar_venta_carrito_api.php"
+
+    val queue=Volley.newRequestQueue(context)
+
+    val request=object: StringRequest(Method.POST,url,
+        { },
+        { error-> error.printStackTrace() }
+    ){
+
+        override fun getParams(): MutableMap<String,String>{
+
+            return hashMapOf(
+                "negocio" to negocio,
+                "usuario" to usuario
             )
 
         }
