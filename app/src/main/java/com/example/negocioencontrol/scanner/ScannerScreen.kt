@@ -90,12 +90,18 @@ fun ScannerScreen(nombreBD: String) {
     }
 
     iniciarScanner = {
-        val integrator = IntentIntegrator(context as Activity)
-        integrator.setDesiredBarcodeFormats(IntentIntegrator.ALL_CODE_TYPES)
-        integrator.setPrompt("Escanea el código de barras")
-        integrator.setBeepEnabled(true)
-        integrator.setOrientationLocked(true)
-        launcher.launch(integrator.createScanIntent())
+        val activity = context as? Activity
+
+        if (activity != null) {
+            val integrator = IntentIntegrator(activity)
+            integrator.setDesiredBarcodeFormats(IntentIntegrator.ALL_CODE_TYPES)
+            integrator.setPrompt("Escanea el código de barras")
+            integrator.setBeepEnabled(true)
+            integrator.setOrientationLocked(true)
+            launcher.launch(integrator.createScanIntent())
+        } else {
+            Toast.makeText(context, "Error al iniciar escáner", Toast.LENGTH_SHORT).show()
+        }
     }
 
     Column(
@@ -958,11 +964,11 @@ fun registrarVentaAPI(
 
     val queue = Volley.newRequestQueue(context)
 
-    val productosJSON = org.json.JSONArray()
+    val productosJSON = JSONArray()
 
     carrito.forEach {
 
-        val obj = org.json.JSONObject()
+        val obj = JSONObject()
 
         obj.put("producto", it.nombre)
         obj.put("precio", it.precio)
@@ -976,12 +982,46 @@ fun registrarVentaAPI(
     val request = object : StringRequest(Method.POST, url,
         { response ->
 
-            println("RESPUESTA SERVER: $response")
             try {
+
+                if (response.isNullOrEmpty()) {
+                    Toast.makeText(context, "Respuesta vacía del servidor", Toast.LENGTH_LONG).show()
+                } else {
+
+                    val json = JSONObject(response)
+
+                    if (json.optBoolean("success", false)) {
+
+                        eliminarCarritoUsuario(
+                            negocio,
+                            vendedor,
+                            context
+                        )
+
+                        Toast.makeText(
+                            context,
+                            "Venta registrada correctamente",
+                            Toast.LENGTH_LONG
+                        ).show()
+
+                        val intent = Intent(context, MainActivity::class.java)
+                        intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                        context.startActivity(intent)
+
+                    } else {
+
+                        Toast.makeText(
+                            context,
+                            json.optString("msg", "Error desconocido"),
+                            Toast.LENGTH_LONG
+                        ).show()
+
+                    }
+                }
 
                 val json = JSONObject(response)
 
-                if(json.getBoolean("success")){
+                if (json.optBoolean("success", false)) {
 
                     eliminarCarritoUsuario(
                         negocio,
@@ -998,10 +1038,27 @@ fun registrarVentaAPI(
                     val intent = Intent(context, MainActivity::class.java)
                     intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
                     context.startActivity(intent)
+
+                } else {
+
+                    Toast.makeText(
+                        context,
+                        json.optString("msg", "Error desconocido"),
+                        Toast.LENGTH_LONG
+                    ).show()
+
                 }
 
-            }catch (e:Exception){
+            } catch (e: Exception) {
+
                 e.printStackTrace()
+
+                Toast.makeText(
+                    context,
+                    "Error procesando respuesta: ${e.message}",
+                    Toast.LENGTH_LONG
+                ).show()
+
             }
 
         },
@@ -1009,10 +1066,13 @@ fun registrarVentaAPI(
 
             error.printStackTrace()
 
+            val mensaje = error.networkResponse?.data?.toString(Charsets.UTF_8)
+                ?: error.message
+
             Toast.makeText(
                 context,
-                "Error al registrar venta",
-                Toast.LENGTH_SHORT
+                "Error servidor: $mensaje",
+                Toast.LENGTH_LONG
             ).show()
 
         }
@@ -1040,7 +1100,6 @@ fun registrarVentaAPI(
     queue.add(request)
 
 }
-
 
 fun eliminarCarritoUsuario(
     negocio:String,
@@ -1071,3 +1130,5 @@ fun eliminarCarritoUsuario(
     queue.add(request)
 
 }
+
+

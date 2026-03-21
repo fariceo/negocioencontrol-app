@@ -1,6 +1,7 @@
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
+    id("com.google.gms.google-services")
 }
 
 android {
@@ -53,6 +54,7 @@ android {
 }
 
 dependencies {
+
     // Core
     implementation("androidx.core:core-ktx:1.9.0")
     implementation("androidx.appcompat:appcompat:1.6.1")
@@ -67,8 +69,10 @@ dependencies {
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.material:material-icons-extended")
+
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
+
     androidTestImplementation(platform("androidx.compose:compose-bom:2023.03.00"))
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
 
@@ -91,8 +95,12 @@ dependencies {
     // Coil para imágenes
     implementation("io.coil-kt:coil-compose:2.4.0")
 
-    // ML Kit Barcode Scanning (opcional, si decides usarlo)
+    // ML Kit Barcode
     implementation("com.google.mlkit:barcode-scanning:17.0.3")
+
+    // Firebase Cloud Messaging
+    implementation("com.google.firebase:firebase-messaging:23.4.1")
+
 
     // Tests
     testImplementation("junit:junit:4.13.2")
