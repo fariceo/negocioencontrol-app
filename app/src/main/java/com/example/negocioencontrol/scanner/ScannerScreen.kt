@@ -932,6 +932,7 @@ fun DatosCompraScreen(
                         carrito = carrito,
                         total = total,
                         metodoPago = metodoPago,
+                        rolDestino = "admin",
                         context = context
                     )
 
@@ -957,7 +958,9 @@ fun registrarVentaAPI(
     carrito: List<ProductoCarrito>,
     total: Double,
     metodoPago: String,
+    rolDestino: String,
     context: Context
+
 ) {
 
     val url = "https://elpollovolantuso.com/negocioencontrol/api/registrar_venta_api.php"
@@ -965,7 +968,7 @@ fun registrarVentaAPI(
     val queue = Volley.newRequestQueue(context)
 
     val productosJSON = JSONArray()
-
+    val timezone = java.util.TimeZone.getDefault().id
     carrito.forEach {
 
         val obj = JSONObject()
@@ -1090,7 +1093,9 @@ fun registrarVentaAPI(
                 "ruc" to ruc,
                 "productos" to productosJSON.toString(),
                 "total" to total.toString(),
-                "metodo_pago" to metodoPago
+                "rol" to rolDestino,
+                "metodo_pago" to metodoPago,
+                "timezone" to timezone
             )
 
         }
