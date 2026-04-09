@@ -776,8 +776,10 @@ fun DatosCompraScreen(
     var telefono by remember { mutableStateOf("") }
     var direccion by remember { mutableStateOf("") }
     var ruc by remember { mutableStateOf("") }
-
+    var tipoIdentificacion by remember { mutableStateOf("07") }
     var metodoPago by remember { mutableStateOf("") }
+
+    var generarFactura by remember { mutableStateOf(false) }
 
     Card(
         modifier = Modifier
@@ -846,35 +848,41 @@ fun DatosCompraScreen(
             Column {
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
-
                     RadioButton(
                         selected = metodoPago == "Efectivo",
                         onClick = { metodoPago = "Efectivo" }
                     )
-
                     Text("Efectivo")
                 }
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
-
                     RadioButton(
-                        selected = metodoPago == "Tarjeta",
-                        onClick = { metodoPago = "Tarjeta" }
+                        selected = metodoPago == "transferencia",
+                        onClick = { metodoPago = "transferencia" }
                     )
-
-                    Text("Tarjeta")
+                    Text("transferencia")
                 }
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
-
                     RadioButton(
                         selected = metodoPago == "Transferencia",
                         onClick = { metodoPago = "Transferencia" }
                     )
-
                     Text("Transferencia")
                 }
+            }
 
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // ✅ CHECKBOX FACTURA
+            Row(
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Checkbox(
+                    checked = generarFactura,
+                    onCheckedChange = { generarFactura = it }
+                )
+                Text("Generar factura electrónica")
             }
 
             Spacer(modifier = Modifier.height(12.dp))
@@ -890,49 +898,50 @@ fun DatosCompraScreen(
                 onClick = {
 
                     if (carrito.isEmpty()) {
-                        Toast.makeText(context,"El carrito está vacío",Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, "El carrito está vacío", Toast.LENGTH_SHORT).show()
                         return@Button
                     }
 
-                    if (
-                        correo.isBlank() ||
-                        telefono.isBlank() ||
-                        direccion.isBlank() ||
-                        ruc.isBlank()
-                    ) {
-
-                        Toast.makeText(
-                            context,
-                            "Complete todos los datos del cliente",
-                            Toast.LENGTH_LONG
-                        ).show()
-
-                        return@Button
+                    if (generarFactura) {
+                        if (
+                            cliente.isBlank() ||
+                            correo.isBlank() ||
+                            telefono.isBlank() ||
+                            direccion.isBlank() ||
+                            ruc.isBlank()
+                        ) {
+                            Toast.makeText(
+                                context,
+                                "Complete todos los datos para la factura",
+                                Toast.LENGTH_LONG
+                            ).show()
+                            return@Button
+                        }
                     }
 
                     if (metodoPago.isBlank()) {
-
                         Toast.makeText(
                             context,
                             "Seleccione método de pago",
                             Toast.LENGTH_SHORT
                         ).show()
-
                         return@Button
                     }
 
                     registrarVentaAPI(
                         negocio = nombreBD,
                         vendedor = usuario,
-                        cliente = cliente,
+                        cliente = if (cliente.isBlank()) "Consumidor Final" else cliente,
                         correo = correo,
                         telefono = telefono,
                         direccion = direccion,
                         ruc = ruc,
+                        tipoIdentificacion = tipoIdentificacion,
                         carrito = carrito,
                         total = total,
                         metodoPago = metodoPago,
-                        rolDestino = "admin",
+                        rolDestino = "cliente",
+                        generarFactura = generarFactura,
                         context = context
                     )
 
@@ -942,10 +951,47 @@ fun DatosCompraScreen(
                 Text("FINALIZAR COMPRA")
             }
 
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text("Tipo de identificación")
+
+            Column {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    RadioButton(
+                        selected = tipoIdentificacion == "05",
+                        onClick = { tipoIdentificacion = "05" }
+                    )
+                    Text("Cédula")
+                }
+
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    RadioButton(
+                        selected = tipoIdentificacion == "04",
+                        onClick = { tipoIdentificacion = "04" }
+                    )
+                    Text("RUC")
+                }
+
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    RadioButton(
+                        selected = tipoIdentificacion == "06",
+                        onClick = { tipoIdentificacion = "06" }
+                    )
+                    Text("Pasaporte")
+                }
+
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    RadioButton(
+                        selected = tipoIdentificacion == "07",
+                        onClick = { tipoIdentificacion = "07" }
+                    )
+                    Text("Consumidor Final")
+                }
+            }
+
         }
 
     }
-
 }
 fun registrarVentaAPI(
     negocio: String,
@@ -955,12 +1001,13 @@ fun registrarVentaAPI(
     telefono: String,
     direccion: String,
     ruc: String,
+    tipoIdentificacion: String,
     carrito: List<ProductoCarrito>,
     total: Double,
     metodoPago: String,
     rolDestino: String,
+    generarFactura: Boolean,
     context: Context
-
 ) {
 
     val url = "https://elpollovolantuso.com/negocioencontrol/api/registrar_venta_api.php"
@@ -969,37 +1016,78 @@ fun registrarVentaAPI(
 
     val productosJSON = JSONArray()
     val timezone = java.util.TimeZone.getDefault().id
+
     carrito.forEach {
-
         val obj = JSONObject()
-
         obj.put("producto", it.nombre)
         obj.put("precio", it.precio)
         obj.put("cantidad", it.cantidad)
         obj.put("total", it.precio * it.cantidad)
-
         productosJSON.put(obj)
-
     }
 
-    val request = object : StringRequest(Method.POST, url,
-        { response ->
+    val request = object : StringRequest(
+        Method.POST,
+        url,
+        responseListener@{ response ->
 
             try {
-
                 if (response.isNullOrEmpty()) {
                     Toast.makeText(context, "Respuesta vacía del servidor", Toast.LENGTH_LONG).show()
-                } else {
+                    return@responseListener
+                }
 
-                    val json = JSONObject(response)
+                val json = JSONObject(response)
 
-                    if (json.optBoolean("success", false)) {
+                if (json.optBoolean("success", false)) {
 
-                        eliminarCarritoUsuario(
-                            negocio,
-                            vendedor,
-                            context
-                        )
+                    val idVenta = json.optInt("id_venta", 0)
+
+                    if (generarFactura) {
+
+                        if (idVenta > 0) {
+                            registrarFacturaSRI(
+                                negocio = negocio,
+                                idVenta = idVenta,
+                                clienteNombre = if (cliente.isBlank()) "Consumidor Final" else cliente,
+                                clienteIdentificacion = ruc,
+                                tipoIdentificacion = tipoIdentificacion,
+                                correo = correo,
+                                direccion = direccion,
+                                telefono = telefono,
+                                metodoPago = metodoPago,
+                                context = context,
+                                onSuccess = {
+                                    eliminarCarritoUsuario(negocio, vendedor, context)
+
+                                    Toast.makeText(
+                                        context,
+                                        "Venta + factura registrada correctamente",
+                                        Toast.LENGTH_LONG
+                                    ).show()
+
+                                    val intent = Intent(context, MainActivity::class.java)
+                                    intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                                    context.startActivity(intent)
+                                },
+                                onError = { errorFactura ->
+                                    Toast.makeText(
+                                        context,
+                                        "Venta guardada, pero falló factura: $errorFactura",
+                                        Toast.LENGTH_LONG
+                                    ).show()
+                                }
+                            )
+                        } else {
+                            Toast.makeText(
+                                context,
+                                "Venta registrada, pero no se recibió id_venta para facturar",
+                                Toast.LENGTH_LONG
+                            ).show()
+                        }
+
+                    } else {
+                        eliminarCarritoUsuario(negocio, vendedor, context)
 
                         Toast.makeText(
                             context,
@@ -1010,58 +1098,23 @@ fun registrarVentaAPI(
                         val intent = Intent(context, MainActivity::class.java)
                         intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
                         context.startActivity(intent)
-
-                    } else {
-
-                        Toast.makeText(
-                            context,
-                            json.optString("msg", "Error desconocido"),
-                            Toast.LENGTH_LONG
-                        ).show()
-
                     }
-                }
-
-                val json = JSONObject(response)
-
-                if (json.optBoolean("success", false)) {
-
-                    eliminarCarritoUsuario(
-                        negocio,
-                        vendedor,
-                        context
-                    )
-
-                    Toast.makeText(
-                        context,
-                        "Venta registrada correctamente",
-                        Toast.LENGTH_LONG
-                    ).show()
-
-                    val intent = Intent(context, MainActivity::class.java)
-                    intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-                    context.startActivity(intent)
 
                 } else {
-
                     Toast.makeText(
                         context,
                         json.optString("msg", "Error desconocido"),
                         Toast.LENGTH_LONG
                     ).show()
-
                 }
 
             } catch (e: Exception) {
-
                 e.printStackTrace()
-
                 Toast.makeText(
                     context,
                     "Error procesando respuesta: ${e.message}",
                     Toast.LENGTH_LONG
                 ).show()
-
             }
 
         },
@@ -1082,7 +1135,6 @@ fun registrarVentaAPI(
     ) {
 
         override fun getParams(): MutableMap<String, String> {
-
             return hashMapOf(
                 "negocio" to negocio,
                 "vendedor" to vendedor,
@@ -1091,21 +1143,84 @@ fun registrarVentaAPI(
                 "telefono" to telefono,
                 "direccion" to direccion,
                 "ruc" to ruc,
+                "tipo_identificacion" to tipoIdentificacion,
                 "productos" to productosJSON.toString(),
                 "total" to total.toString(),
                 "rol" to rolDestino,
                 "metodo_pago" to metodoPago,
                 "timezone" to timezone
             )
-
         }
 
     }
 
     queue.add(request)
-
 }
+fun registrarFacturaSRI(
+    negocio: String,
+    idVenta: Int,
+    clienteNombre: String,
+    clienteIdentificacion: String,
+    tipoIdentificacion: String,
+    correo: String,
+    direccion: String,
+    telefono: String,
+    metodoPago: String,
+    context: Context,
+    onSuccess: () -> Unit,
+    onError: (String) -> Unit
+) {
 
+    val url = "https://elpollovolantuso.com/negocioencontrol/api/factura_sri_api.php"
+    val queue = Volley.newRequestQueue(context)
+
+    val request = object : StringRequest(
+        Method.POST,
+        url,
+        { response ->
+            try {
+                val json = JSONObject(response)
+
+                if (json.optBoolean("ok", false)) {
+                    onSuccess()
+                } else {
+                    val mensaje = json.optString("mensaje", "No se pudo registrar factura")
+                    val errorDetalle = json.optString("error", "")
+                    onError("$mensaje $errorDetalle")
+                }
+
+            } catch (e: Exception) {
+                e.printStackTrace()
+                onError("Respuesta inválida de factura: ${e.message}")
+            }
+        },
+        { error ->
+            error.printStackTrace()
+            val mensaje = error.networkResponse?.data?.toString(Charsets.UTF_8)
+                ?: error.message
+                ?: "Error desconocido al facturar"
+
+            onError(mensaje)
+        }
+    ) {
+
+        override fun getParams(): MutableMap<String, String> {
+            return hashMapOf(
+                "negocio" to negocio,
+                "id_venta" to idVenta.toString(),
+                "cliente_nombre" to clienteNombre,
+                "cliente_identificacion" to clienteIdentificacion,
+                "tipo_identificacion" to tipoIdentificacion,
+                "correo" to correo,
+                "direccion" to direccion,
+                "telefono" to telefono,
+                "metodo_pago" to metodoPago.lowercase()
+            )
+        }
+    }
+
+    queue.add(request)
+}
 fun eliminarCarritoUsuario(
     negocio:String,
     usuario:String,
