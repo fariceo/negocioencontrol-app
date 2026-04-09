@@ -865,10 +865,50 @@ fun DatosCompraScreen(
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     RadioButton(
-                        selected = metodoPago == "Transferencia",
-                        onClick = { metodoPago = "Transferencia" }
+                        selected = metodoPago == "Credito",
+                        onClick = { metodoPago = "Credito" }
                     )
-                    Text("Transferencia")
+                    Text("Credito")
+                }
+            }
+
+
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text("Tipo de identificación")
+
+            Column {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    RadioButton(
+                        selected = tipoIdentificacion == "05",
+                        onClick = { tipoIdentificacion = "05" }
+                    )
+                    Text("Cédula")
+                }
+
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    RadioButton(
+                        selected = tipoIdentificacion == "04",
+                        onClick = { tipoIdentificacion = "04" }
+                    )
+                    Text("RUC")
+                }
+
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    RadioButton(
+                        selected = tipoIdentificacion == "06",
+                        onClick = { tipoIdentificacion = "06" }
+                    )
+                    Text("Pasaporte")
+                }
+
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    RadioButton(
+                        selected = tipoIdentificacion == "07",
+                        onClick = { tipoIdentificacion = "07" }
+                    )
+                    Text("Consumidor Final")
                 }
             }
 
@@ -949,44 +989,6 @@ fun DatosCompraScreen(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text("FINALIZAR COMPRA")
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Text("Tipo de identificación")
-
-            Column {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    RadioButton(
-                        selected = tipoIdentificacion == "05",
-                        onClick = { tipoIdentificacion = "05" }
-                    )
-                    Text("Cédula")
-                }
-
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    RadioButton(
-                        selected = tipoIdentificacion == "04",
-                        onClick = { tipoIdentificacion = "04" }
-                    )
-                    Text("RUC")
-                }
-
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    RadioButton(
-                        selected = tipoIdentificacion == "06",
-                        onClick = { tipoIdentificacion = "06" }
-                    )
-                    Text("Pasaporte")
-                }
-
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    RadioButton(
-                        selected = tipoIdentificacion == "07",
-                        onClick = { tipoIdentificacion = "07" }
-                    )
-                    Text("Consumidor Final")
-                }
             }
 
         }

@@ -38,6 +38,9 @@ class MainActivity : ComponentActivity() {
 
         prefs = getSharedPreferences("sesion", MODE_PRIVATE)
 
+        // 👇 obtener nombre del negocio guardado en sesión
+        val nombreNegocio = prefs.getString("nombre_negocio", "NEGOCIO EN CONTROL") ?: "NEGOCIO EN CONTROL"
+
         // Obtener token de Firebase
         FirebaseMessaging.getInstance().token
             .addOnCompleteListener { task ->
@@ -61,9 +64,9 @@ class MainActivity : ComponentActivity() {
             requestPermissions(arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), 1001)
         }
 
-
         setContent {
             MainScreen(
+                nombreNegocio = nombreNegocio, // 👈 se lo mandamos al composable
                 onScanClick = {
                     val intent = Intent(this, ScannerActivity::class.java)
                     startActivity(intent)
@@ -83,7 +86,11 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun MainScreen(onScanClick: () -> Unit, onLogout: () -> Unit) {
+fun MainScreen(
+    nombreNegocio: String,
+    onScanClick: () -> Unit,
+    onLogout: () -> Unit
+) {
 
     Column(modifier = Modifier.fillMaxSize()) {
 
@@ -94,7 +101,7 @@ fun MainScreen(onScanClick: () -> Unit, onLogout: () -> Unit) {
                 .padding(16.dp)
         ) {
             Text(
-                text = "NEGOCIO EN CONTROL",
+                text = nombreNegocio, // 👈 aquí ya es dinámico
                 color = Color.White,
                 fontSize = 24.sp,
                 modifier = Modifier.align(Alignment.Center)
