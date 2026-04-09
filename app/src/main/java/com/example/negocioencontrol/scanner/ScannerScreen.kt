@@ -36,6 +36,7 @@ import androidx.compose.animation.shrinkVertically
 import coil.compose.AsyncImage
 import androidx.compose.ui.draw.clip
 import android.content.Intent
+import androidx.compose.ui.graphics.Color
 import com.example.negocioencontrol.MainActivity
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -94,6 +95,8 @@ fun ScannerScreen(nombreBD: String) {
 
         if (activity != null) {
             val integrator = IntentIntegrator(activity)
+            integrator.setCaptureActivity(CustomScannerActivity::class.java)
+
             integrator.setDesiredBarcodeFormats(IntentIntegrator.ALL_CODE_TYPES)
             integrator.setPrompt("Escanea el código de barras")
             integrator.setBeepEnabled(true)
@@ -108,34 +111,77 @@ fun ScannerScreen(nombreBD: String) {
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
+            .padding(12.dp)
     ) {
 
+        // =========================
+        // 🔹 ESCÁNER + BUSCADOR
+        // =========================
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(18.dp),
+            elevation = CardDefaults.cardElevation(8.dp)
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
 
+                Text(
+                    "Agregar productos",
+                    style = MaterialTheme.typography.titleLarge
+                )
 
-        Button(onClick = { iniciarScanner() }, modifier = Modifier.fillMaxWidth()) {
-            Text("Iniciar Escaneo")
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Button(
+                    onClick = { iniciarScanner() },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = androidx.compose.ui.graphics.Color(0xFF16A34A)
+                    ),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text("📷 Escanear código")
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                BusquedaManualProductoPanel(
+                    nombreBD = nombreBD,
+                    usuario = usuario,
+                    recargarCarrito = { recargarCarrito() }
+                )
+            }
         }
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        BusquedaManualProductoPanel(
-            nombreBD = nombreBD,
-            usuario = usuario,
-            recargarCarrito = { recargarCarrito() }
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-
+        // =========================
+        // 🔹 PRODUCTO ESCANEADO
+        // =========================
         producto?.let { p ->
-            Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp)) {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(18.dp),
+                elevation = CardDefaults.cardElevation(6.dp)
+            ) {
                 Column(modifier = Modifier.padding(16.dp)) {
-                    Text("Producto: ${p.producto}", fontSize = 18.sp)
-                    Text("Precio: $${p.precio}", fontSize = 16.sp)
-                    Text("Categoría: ${p.categoria}", fontSize = 16.sp)
-                    Text("Stock: ${p.stock}", fontSize = 16.sp)
+
+                    Text(
+                        p.producto,
+                        style = MaterialTheme.typography.titleLarge
+                    )
+
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    Text("Categoría: ${p.categoria}")
+                    Text("Stock: ${p.stock}")
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Text(
+                        "$${p.precio}",
+                        fontSize = 20.sp,
+                        color = androidx.compose.ui.graphics.Color(0xFF059669)
+                    )
 
                     if (p.imagen.isNotEmpty()) {
                         Image(
@@ -147,53 +193,66 @@ fun ScannerScreen(nombreBD: String) {
                                 .fillMaxWidth()
                                 .height(180.dp)
                                 .padding(top = 8.dp)
+                                .clip(RoundedCornerShape(14.dp))
                         )
                     }
                 }
             }
+
+            Spacer(modifier = Modifier.height(16.dp))
         }
 
-        Spacer(modifier = Modifier.height(20.dp))
-
-        Text("Carrito", fontSize = 22.sp, style = MaterialTheme.typography.titleLarge)
-        Spacer(modifier = Modifier.height(8.dp))
-        Column(
-            modifier = Modifier.fillMaxWidth()
+        // =========================
+        // 🔹 CARRITO
+        // =========================
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(18.dp),
+            elevation = CardDefaults.cardElevation(8.dp)
         ) {
+            Column(modifier = Modifier.padding(16.dp)) {
 
-            carrito.forEach { item ->
+                Text(
+                    "🛒 Carrito",
+                    style = MaterialTheme.typography.titleLarge
+                )
 
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 6.dp),
-                    shape = RoundedCornerShape(12.dp),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
-                ) {
+                Spacer(modifier = Modifier.height(10.dp))
 
-                    Row(
+                if (carrito.isEmpty()) {
+                    Text("Tu carrito está vacío", color = androidx.compose.ui.graphics.Color.Gray)
+                }
+
+                carrito.forEach { item ->
+
+                    Card(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(12.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                            .padding(vertical = 6.dp),
+                        shape = RoundedCornerShape(14.dp),
+                        elevation = CardDefaults.cardElevation(4.dp)
                     ) {
 
-                        // Información del producto y control de cantidad
-                        Column {
+                        Column(modifier = Modifier.padding(12.dp)) {
 
-                            Text(item.nombre, style = MaterialTheme.typography.titleMedium)
+                            Text(
+                                item.nombre,
+                                style = MaterialTheme.typography.titleMedium
+                            )
 
                             Spacer(modifier = Modifier.height(6.dp))
 
                             Text(
-                                "Precio unitario: $${"%.2f".format(item.precio)}",
-                                style = MaterialTheme.typography.bodyMedium
+                                "$${"%.2f".format(item.precio * item.cantidad)}",
+                                color = androidx.compose.ui.graphics.Color(0xFF059669)
                             )
 
-                            Row(verticalAlignment = Alignment.CenterVertically) {
+                            Spacer(modifier = Modifier.height(6.dp))
 
-                                // Botón "-"
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+
                                 IconButton(
                                     onClick = {
                                         val nuevaCantidad = item.cantidad - 1
@@ -202,26 +261,11 @@ fun ScannerScreen(nombreBD: String) {
                                         ) { recargarCarrito() }
                                     }
                                 ) {
-                                    Text("-", fontSize = 20.sp)
+                                    Text("-")
                                 }
 
-                                // Cantidad
-                                Box(
-                                    modifier = Modifier
-                                        .padding(horizontal = 6.dp)
-                                        .height(32.dp)
-                                        .width(40.dp)
-                                        .border(
-                                            1.dp,
-                                            MaterialTheme.colorScheme.primary,
-                                            RoundedCornerShape(6.dp)
-                                        ),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text("${item.cantidad}", style = MaterialTheme.typography.titleMedium)
-                                }
+                                Text("${item.cantidad}")
 
-                                // Botón "+"
                                 IconButton(
                                     onClick = {
                                         val nuevaCantidad = item.cantidad + 1
@@ -230,61 +274,51 @@ fun ScannerScreen(nombreBD: String) {
                                         ) { recargarCarrito() }
                                     }
                                 ) {
-                                    Text("+", fontSize = 20.sp)
+                                    Text("+")
                                 }
 
-                            }
+                                Spacer(modifier = Modifier.weight(1f))
 
-                        }
-
-                        // Precio total y eliminar
-                        Column(horizontalAlignment = Alignment.End) {
-
-                            Text(
-                                "$${"%.2f".format(item.precio * item.cantidad)}",
-                                style = MaterialTheme.typography.titleMedium
-                            )
-
-                            TextButton(
-                                onClick = {
-                                    actualizarCantidadCarritoAPI(
-                                        nombreBD, usuario, item.id, 0, context
-                                    ) { recargarCarrito() }
+                                TextButton(
+                                    onClick = {
+                                        actualizarCantidadCarritoAPI(
+                                            nombreBD, usuario, item.id, 0, context
+                                        ) { recargarCarrito() }
+                                    }
+                                ) {
+                                    Text("Eliminar", color = androidx.compose.ui.graphics.Color.Red)
                                 }
-                            ) {
-                                Text("Eliminar")
                             }
-
                         }
-
                     }
-
                 }
 
+                Spacer(modifier = Modifier.height(10.dp))
+
+                Text(
+                    "TOTAL: $${"%.2f".format(total)}",
+                    style = MaterialTheme.typography.titleLarge
+                )
             }
-
         }
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Text(
-            "TOTAL: $${"%.2f".format(total)}",
-            fontSize = 22.sp
-        )
-
 
         Spacer(modifier = Modifier.height(16.dp))
 
+        // =========================
+        // 🔹 DATOS + PAGO
+        // =========================
         DatosCompraScreen(
             nombreBD = nombreBD,
             usuario = usuario,
             carrito = carrito,
             total = total
         )
-
     }
 
 
 }
+
+
 @Composable
 fun BusquedaManualProductoPanel(
     nombreBD: String,
@@ -298,13 +332,20 @@ fun BusquedaManualProductoPanel(
 
         Button(
             onClick = { mostrarBusqueda = !mostrarBusqueda },
-            modifier = Modifier.padding(16.dp)
+            modifier = Modifier.fillMaxWidth(),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = Color(0xFF16A34A),
+                contentColor = androidx.compose.ui.graphics.Color.White
+            ),
+            shape = RoundedCornerShape(12.dp),
+            elevation = ButtonDefaults.buttonElevation(
+                defaultElevation = 6.dp,
+                pressedElevation = 2.dp
+            )
         ) {
             Text(
-                if (mostrarBusqueda)
-                    "Ocultar búsqueda"
-                else
-                    "Buscar producto manual"
+                text = if (mostrarBusqueda) "🔽 Ocultar búsqueda" else "🔍 Buscar producto manual",
+                fontSize = 16.sp
             )
         }
 
