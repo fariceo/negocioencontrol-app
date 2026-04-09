@@ -38,9 +38,10 @@ import androidx.compose.ui.draw.clip
 import android.content.Intent
 import androidx.compose.ui.graphics.Color
 import com.example.negocioencontrol.MainActivity
-
+import androidx.compose.foundation.clickable
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
+
 fun ScannerScreen(nombreBD: String) {
 
     val context = LocalContext.current
@@ -53,10 +54,11 @@ fun ScannerScreen(nombreBD: String) {
     val usuario = prefs.getString("correo_usuario", "") ?: ""
     val total = carrito.sumOf { it.precio * it.cantidad }
 
-    // Función para recargar carrito desde BD
+    var seccionActiva by remember { mutableStateOf("scanner") }
+
     fun recargarCarrito() {
-        obtenerCarritoAPI(nombreBD, usuario, context) { lista: MutableList<ProductoCarrito> ->
-            carrito = lista // ⚡ reasignar para recomposición
+        obtenerCarritoAPI(nombreBD, usuario, context) {
+            carrito = it
         }
     }
 
@@ -67,22 +69,30 @@ fun ScannerScreen(nombreBD: String) {
     val launcher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
     ) { result ->
+
         val intentResult = IntentIntegrator.parseActivityResult(result.resultCode, result.data)
 
         if (intentResult != null && intentResult.contents != null) {
-            val codigo = intentResult.contents.trim()
-            if (codigo.isEmpty()) { iniciarScanner(); return@rememberLauncherForActivityResult }
 
-            buscarProductoAPI(codigo, nombreBD, context) { prod: Producto? ->
+            val codigo = intentResult.contents.trim()
+
+            if (codigo.isEmpty()) {
+                iniciarScanner()
+                return@rememberLauncherForActivityResult
+            }
+
+            buscarProductoAPI(codigo, nombreBD, context) { prod ->
+
                 if (prod != null) {
                     producto = prod
 
-                    // agregar a la BD y luego recargar carrito
                     agregarAlCarritoAPI(nombreBD, usuario, prod.id, "1", context) {
                         recargarCarrito()
+                        seccionActiva = "carrito" // 🔥 UX PRO
                     }
                 }
-                iniciarScanner() // volver a abrir scanner automáticamente
+
+                iniciarScanner()
             }
 
         } else if (result.resultCode == Activity.RESULT_CANCELED) {
@@ -96,14 +106,11 @@ fun ScannerScreen(nombreBD: String) {
         if (activity != null) {
             val integrator = IntentIntegrator(activity)
             integrator.setCaptureActivity(CustomScannerActivity::class.java)
-
             integrator.setDesiredBarcodeFormats(IntentIntegrator.ALL_CODE_TYPES)
             integrator.setPrompt("Escanea el código de barras")
             integrator.setBeepEnabled(true)
             integrator.setOrientationLocked(true)
             launcher.launch(integrator.createScanIntent())
-        } else {
-            Toast.makeText(context, "Error al iniciar escáner", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -115,40 +122,53 @@ fun ScannerScreen(nombreBD: String) {
     ) {
 
         // =========================
-        // 🔹 ESCÁNER + BUSCADOR
+        // 🔹 AGREGAR PRODUCTOS
         // =========================
         Card(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable {
+                    seccionActiva = if (seccionActiva == "scanner") "" else "scanner"
+                },
             shape = RoundedCornerShape(18.dp),
             elevation = CardDefaults.cardElevation(8.dp)
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
 
                 Text(
-                    "Agregar productos",
+                    if (seccionActiva == "scanner") "Agregar productos ▲" else "Agregar productos ▼",
                     style = MaterialTheme.typography.titleLarge
                 )
 
-                Spacer(modifier = Modifier.height(12.dp))
-
-                Button(
-                    onClick = { iniciarScanner() },
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = androidx.compose.ui.graphics.Color(0xFF16A34A)
-                    ),
-                    shape = RoundedCornerShape(12.dp)
+                AnimatedVisibility(
+                    visible = seccionActiva == "scanner",
+                    enter = expandVertically(),
+                    exit = shrinkVertically()
                 ) {
-                    Text("📷 Escanear código")
+
+                    Column {
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        Button(
+                            onClick = { iniciarScanner() },
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color(0xFF16A34A)
+                            )
+                        ) {
+                            Text("📷 Escanear código")
+                        }
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        BusquedaManualProductoPanel(
+                            nombreBD = nombreBD,
+                            usuario = usuario,
+                            recargarCarrito = { recargarCarrito() }
+                        )
+                    }
                 }
-
-                Spacer(modifier = Modifier.height(10.dp))
-
-                BusquedaManualProductoPanel(
-                    nombreBD = nombreBD,
-                    usuario = usuario,
-                    recargarCarrito = { recargarCarrito() }
-                )
             }
         }
 
@@ -158,44 +178,16 @@ fun ScannerScreen(nombreBD: String) {
         // 🔹 PRODUCTO ESCANEADO
         // =========================
         producto?.let { p ->
+
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(18.dp),
-                elevation = CardDefaults.cardElevation(6.dp)
+                shape = RoundedCornerShape(18.dp)
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
 
-                    Text(
-                        p.producto,
-                        style = MaterialTheme.typography.titleLarge
-                    )
-
-                    Spacer(modifier = Modifier.height(6.dp))
-
-                    Text("Categoría: ${p.categoria}")
+                    Text(p.producto)
                     Text("Stock: ${p.stock}")
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    Text(
-                        "$${p.precio}",
-                        fontSize = 20.sp,
-                        color = androidx.compose.ui.graphics.Color(0xFF059669)
-                    )
-
-                    if (p.imagen.isNotEmpty()) {
-                        Image(
-                            painter = rememberAsyncImagePainter(
-                                "https://elpollovolantuso.com/negocioencontrol/assets/images/${p.imagen}"
-                            ),
-                            contentDescription = p.producto,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(180.dp)
-                                .padding(top = 8.dp)
-                                .clip(RoundedCornerShape(14.dp))
-                        )
-                    }
+                    Text("$${p.precio}")
                 }
             }
 
@@ -206,116 +198,144 @@ fun ScannerScreen(nombreBD: String) {
         // 🔹 CARRITO
         // =========================
         Card(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable {
+                    seccionActiva = if (seccionActiva == "carrito") "" else "carrito"
+                },
             shape = RoundedCornerShape(18.dp),
             elevation = CardDefaults.cardElevation(8.dp)
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
 
                 Text(
-                    "🛒 Carrito",
+                    if (seccionActiva == "carrito") "🛒 Carrito ▲" else "🛒 Carrito ▼",
                     style = MaterialTheme.typography.titleLarge
                 )
 
-                Spacer(modifier = Modifier.height(10.dp))
+                AnimatedVisibility(
+                    visible = seccionActiva == "carrito",
+                    enter = expandVertically(),
+                    exit = shrinkVertically()
+                ) {
 
-                if (carrito.isEmpty()) {
-                    Text("Tu carrito está vacío", color = androidx.compose.ui.graphics.Color.Gray)
-                }
+                    Column {
 
-                carrito.forEach { item ->
+                        Spacer(modifier = Modifier.height(10.dp))
 
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 6.dp),
-                        shape = RoundedCornerShape(14.dp),
-                        elevation = CardDefaults.cardElevation(4.dp)
-                    ) {
+                        if (carrito.isEmpty()) {
+                            Text("Tu carrito está vacío", color = Color.Gray)
+                        }
 
-                        Column(modifier = Modifier.padding(12.dp)) {
+                        carrito.forEach { item ->
 
-                            Text(
-                                item.nombre,
-                                style = MaterialTheme.typography.titleMedium
-                            )
-
-                            Spacer(modifier = Modifier.height(6.dp))
-
-                            Text(
-                                "$${"%.2f".format(item.precio * item.cantidad)}",
-                                color = androidx.compose.ui.graphics.Color(0xFF059669)
-                            )
-
-                            Spacer(modifier = Modifier.height(6.dp))
-
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 6.dp),
+                                shape = RoundedCornerShape(14.dp),
+                                elevation = CardDefaults.cardElevation(4.dp)
                             ) {
 
-                                IconButton(
-                                    onClick = {
-                                        val nuevaCantidad = item.cantidad - 1
-                                        actualizarCantidadCarritoAPI(
-                                            nombreBD, usuario, item.id, nuevaCantidad, context
-                                        ) { recargarCarrito() }
+                                Column(modifier = Modifier.padding(12.dp)) {
+
+                                    Text(
+                                        item.nombre,
+                                        style = MaterialTheme.typography.titleMedium
+                                    )
+
+                                    Spacer(modifier = Modifier.height(6.dp))
+
+                                    Text(
+                                        "$${"%.2f".format(item.precio * item.cantidad)}",
+                                        color = Color(0xFF059669)
+                                    )
+
+                                    Spacer(modifier = Modifier.height(6.dp))
+
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+
+                                        IconButton(onClick = {
+                                            val nuevaCantidad = item.cantidad - 1
+                                            actualizarCantidadCarritoAPI(
+                                                nombreBD, usuario, item.id, nuevaCantidad, context
+                                            ) { recargarCarrito() }
+                                        }) {
+                                            Text("-")
+                                        }
+
+                                        Text("${item.cantidad}")
+
+                                        IconButton(onClick = {
+                                            val nuevaCantidad = item.cantidad + 1
+                                            actualizarCantidadCarritoAPI(
+                                                nombreBD, usuario, item.id, nuevaCantidad, context
+                                            ) { recargarCarrito() }
+                                        }) {
+                                            Text("+")
+                                        }
+
+                                        Spacer(modifier = Modifier.weight(1f))
+
+                                        TextButton(onClick = {
+                                            actualizarCantidadCarritoAPI(
+                                                nombreBD, usuario, item.id, 0, context
+                                            ) { recargarCarrito() }
+                                        }) {
+                                            Text("Eliminar", color = Color.Red)
+                                        }
                                     }
-                                ) {
-                                    Text("-")
-                                }
-
-                                Text("${item.cantidad}")
-
-                                IconButton(
-                                    onClick = {
-                                        val nuevaCantidad = item.cantidad + 1
-                                        actualizarCantidadCarritoAPI(
-                                            nombreBD, usuario, item.id, nuevaCantidad, context
-                                        ) { recargarCarrito() }
-                                    }
-                                ) {
-                                    Text("+")
-                                }
-
-                                Spacer(modifier = Modifier.weight(1f))
-
-                                TextButton(
-                                    onClick = {
-                                        actualizarCantidadCarritoAPI(
-                                            nombreBD, usuario, item.id, 0, context
-                                        ) { recargarCarrito() }
-                                    }
-                                ) {
-                                    Text("Eliminar", color = androidx.compose.ui.graphics.Color.Red)
                                 }
                             }
                         }
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        Text(
+                            "TOTAL: $${"%.2f".format(total)}",
+                            style = MaterialTheme.typography.titleLarge
+                        )
                     }
                 }
-
-                Spacer(modifier = Modifier.height(10.dp))
-
-                Text(
-                    "TOTAL: $${"%.2f".format(total)}",
-                    style = MaterialTheme.typography.titleLarge
-                )
             }
         }
 
         Spacer(modifier = Modifier.height(16.dp))
 
         // =========================
-        // 🔹 DATOS + PAGO
+        // 🔹 DATOS COMPRA
         // =========================
-        DatosCompraScreen(
-            nombreBD = nombreBD,
-            usuario = usuario,
-            carrito = carrito,
-            total = total
-        )
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable {
+                    seccionActiva = if (seccionActiva == "datos") "" else "datos"
+                },
+            shape = RoundedCornerShape(18.dp),
+            elevation = CardDefaults.cardElevation(8.dp)
+        ) {
+
+            Column(modifier = Modifier.padding(16.dp)) {
+
+                Text(
+                    if (seccionActiva == "datos") "Datos de la compra ▲" else "Datos de la compra ▼",
+                    style = MaterialTheme.typography.titleLarge
+                )
+
+                AnimatedVisibility(
+                    visible = seccionActiva == "datos"
+                ) {
+
+                    DatosCompraScreen(
+                        nombreBD = nombreBD,
+                        usuario = usuario,
+                        carrito = carrito,
+                        total = total
+                    )
+                }
+            }
+        }
     }
-
-
 }
 
 
@@ -803,6 +823,7 @@ fun obtenerCarritoAPI(negocio: String, usuario: String, context: Context, onResu
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
+
 fun DatosCompraScreen(
     nombreBD: String,
     usuario: String,
@@ -822,216 +843,205 @@ fun DatosCompraScreen(
 
     var generarFactura by remember { mutableStateOf(false) }
 
-    Card(
+    Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(16.dp),
-        shape = RoundedCornerShape(12.dp),
-        elevation = CardDefaults.cardElevation(6.dp)
+            .padding(12.dp) // 🔥 ajustado para que no se vea doble padding
     ) {
 
-        Column(modifier = Modifier.padding(16.dp)) {
+        Text(
+            "Datos de la compra",
+            style = MaterialTheme.typography.titleLarge
+        )
 
-            Text(
-                "Datos de la compra",
-                style = MaterialTheme.typography.titleLarge
-            )
+        Spacer(modifier = Modifier.height(12.dp))
 
-            Spacer(modifier = Modifier.height(12.dp))
+        OutlinedTextField(
+            value = cliente,
+            onValueChange = { cliente = it },
+            label = { Text("Cliente (opcional)") },
+            modifier = Modifier.fillMaxWidth()
+        )
 
-            OutlinedTextField(
-                value = cliente,
-                onValueChange = { cliente = it },
-                label = { Text("Cliente (opcional)") },
-                modifier = Modifier.fillMaxWidth()
-            )
+        Spacer(modifier = Modifier.height(8.dp))
 
-            Spacer(modifier = Modifier.height(8.dp))
+        OutlinedTextField(
+            value = correo,
+            onValueChange = { correo = it },
+            label = { Text("Correo electrónico") },
+            modifier = Modifier.fillMaxWidth()
+        )
 
-            OutlinedTextField(
-                value = correo,
-                onValueChange = { correo = it },
-                label = { Text("Correo electrónico") },
-                modifier = Modifier.fillMaxWidth()
-            )
+        Spacer(modifier = Modifier.height(8.dp))
 
-            Spacer(modifier = Modifier.height(8.dp))
+        OutlinedTextField(
+            value = telefono,
+            onValueChange = { telefono = it },
+            label = { Text("Teléfono") },
+            modifier = Modifier.fillMaxWidth()
+        )
 
-            OutlinedTextField(
-                value = telefono,
-                onValueChange = { telefono = it },
-                label = { Text("Teléfono") },
-                modifier = Modifier.fillMaxWidth()
-            )
+        Spacer(modifier = Modifier.height(8.dp))
 
-            Spacer(modifier = Modifier.height(8.dp))
+        OutlinedTextField(
+            value = direccion,
+            onValueChange = { direccion = it },
+            label = { Text("Dirección") },
+            modifier = Modifier.fillMaxWidth()
+        )
 
-            OutlinedTextField(
-                value = direccion,
-                onValueChange = { direccion = it },
-                label = { Text("Dirección") },
-                modifier = Modifier.fillMaxWidth()
-            )
+        Spacer(modifier = Modifier.height(8.dp))
 
-            Spacer(modifier = Modifier.height(8.dp))
+        OutlinedTextField(
+            value = ruc,
+            onValueChange = { ruc = it },
+            label = { Text("RUC / Cédula") },
+            modifier = Modifier.fillMaxWidth()
+        )
 
-            OutlinedTextField(
-                value = ruc,
-                onValueChange = { ruc = it },
-                label = { Text("RUC / Cédula") },
-                modifier = Modifier.fillMaxWidth()
-            )
+        Spacer(modifier = Modifier.height(12.dp))
 
-            Spacer(modifier = Modifier.height(12.dp))
+        Text("Método de pago")
 
-            Text("Método de pago")
+        Column {
 
-            Column {
-
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    RadioButton(
-                        selected = metodoPago == "Efectivo",
-                        onClick = { metodoPago = "Efectivo" }
-                    )
-                    Text("Efectivo")
-                }
-
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    RadioButton(
-                        selected = metodoPago == "transferencia",
-                        onClick = { metodoPago = "transferencia" }
-                    )
-                    Text("transferencia")
-                }
-
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    RadioButton(
-                        selected = metodoPago == "Credito",
-                        onClick = { metodoPago = "Credito" }
-                    )
-                    Text("Credito")
-                }
-            }
-
-
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Text("Tipo de identificación")
-
-            Column {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    RadioButton(
-                        selected = tipoIdentificacion == "05",
-                        onClick = { tipoIdentificacion = "05" }
-                    )
-                    Text("Cédula")
-                }
-
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    RadioButton(
-                        selected = tipoIdentificacion == "04",
-                        onClick = { tipoIdentificacion = "04" }
-                    )
-                    Text("RUC")
-                }
-
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    RadioButton(
-                        selected = tipoIdentificacion == "06",
-                        onClick = { tipoIdentificacion = "06" }
-                    )
-                    Text("Pasaporte")
-                }
-
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    RadioButton(
-                        selected = tipoIdentificacion == "07",
-                        onClick = { tipoIdentificacion = "07" }
-                    )
-                    Text("Consumidor Final")
-                }
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // ✅ CHECKBOX FACTURA
-            Row(
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Checkbox(
-                    checked = generarFactura,
-                    onCheckedChange = { generarFactura = it }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                RadioButton(
+                    selected = metodoPago == "Efectivo",
+                    onClick = { metodoPago = "Efectivo" }
                 )
-                Text("Generar factura electrónica")
+                Text("Efectivo")
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                RadioButton(
+                    selected = metodoPago == "transferencia",
+                    onClick = { metodoPago = "transferencia" }
+                )
+                Text("transferencia")
+            }
 
-            Text(
-                "TOTAL: $${"%.2f".format(total)}",
-                style = MaterialTheme.typography.titleLarge
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                RadioButton(
+                    selected = metodoPago == "Credito",
+                    onClick = { metodoPago = "Credito" }
+                )
+                Text("Credito")
+            }
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Text("Tipo de identificación")
+
+        Column {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                RadioButton(
+                    selected = tipoIdentificacion == "05",
+                    onClick = { tipoIdentificacion = "05" }
+                )
+                Text("Cédula")
+            }
+
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                RadioButton(
+                    selected = tipoIdentificacion == "04",
+                    onClick = { tipoIdentificacion = "04" }
+                )
+                Text("RUC")
+            }
+
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                RadioButton(
+                    selected = tipoIdentificacion == "06",
+                    onClick = { tipoIdentificacion = "06" }
+                )
+                Text("Pasaporte")
+            }
+
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                RadioButton(
+                    selected = tipoIdentificacion == "07",
+                    onClick = { tipoIdentificacion = "07" }
+                )
+                Text("Consumidor Final")
+            }
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Checkbox(
+                checked = generarFactura,
+                onCheckedChange = { generarFactura = it }
             )
+            Text("Generar factura electrónica")
+        }
 
-            Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(12.dp))
 
-            Button(
-                onClick = {
+        Text(
+            "TOTAL: $${"%.2f".format(total)}",
+            style = MaterialTheme.typography.titleLarge
+        )
 
-                    if (carrito.isEmpty()) {
-                        Toast.makeText(context, "El carrito está vacío", Toast.LENGTH_SHORT).show()
-                        return@Button
-                    }
+        Spacer(modifier = Modifier.height(16.dp))
 
-                    if (generarFactura) {
-                        if (
-                            cliente.isBlank() ||
-                            correo.isBlank() ||
-                            telefono.isBlank() ||
-                            direccion.isBlank() ||
-                            ruc.isBlank()
-                        ) {
-                            Toast.makeText(
-                                context,
-                                "Complete todos los datos para la factura",
-                                Toast.LENGTH_LONG
-                            ).show()
-                            return@Button
-                        }
-                    }
+        Button(
+            onClick = {
 
-                    if (metodoPago.isBlank()) {
+                if (carrito.isEmpty()) {
+                    Toast.makeText(context, "El carrito está vacío", Toast.LENGTH_SHORT).show()
+                    return@Button
+                }
+
+                if (generarFactura) {
+                    if (
+                        cliente.isBlank() ||
+                        correo.isBlank() ||
+                        telefono.isBlank() ||
+                        direccion.isBlank() ||
+                        ruc.isBlank()
+                    ) {
                         Toast.makeText(
                             context,
-                            "Seleccione método de pago",
-                            Toast.LENGTH_SHORT
+                            "Complete todos los datos para la factura",
+                            Toast.LENGTH_LONG
                         ).show()
                         return@Button
                     }
+                }
 
-                    registrarVentaAPI(
-                        negocio = nombreBD,
-                        vendedor = usuario,
-                        cliente = if (cliente.isBlank()) "Consumidor Final" else cliente,
-                        correo = correo,
-                        telefono = telefono,
-                        direccion = direccion,
-                        ruc = ruc,
-                        tipoIdentificacion = tipoIdentificacion,
-                        carrito = carrito,
-                        total = total,
-                        metodoPago = metodoPago,
-                        rolDestino = "cliente",
-                        generarFactura = generarFactura,
-                        context = context
-                    )
+                if (metodoPago.isBlank()) {
+                    Toast.makeText(
+                        context,
+                        "Seleccione método de pago",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                    return@Button
+                }
 
-                },
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text("FINALIZAR COMPRA")
-            }
+                registrarVentaAPI(
+                    negocio = nombreBD,
+                    vendedor = usuario,
+                    cliente = if (cliente.isBlank()) "Consumidor Final" else cliente,
+                    correo = correo,
+                    telefono = telefono,
+                    direccion = direccion,
+                    ruc = ruc,
+                    tipoIdentificacion = tipoIdentificacion,
+                    carrito = carrito,
+                    total = total,
+                    metodoPago = metodoPago,
+                    rolDestino = "cliente",
+                    generarFactura = generarFactura,
+                    context = context
+                )
 
+            },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("FINALIZAR COMPRA")
         }
 
     }
