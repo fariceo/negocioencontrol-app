@@ -830,7 +830,7 @@ fun DatosCompraScreen(
     carrito: List<ProductoCarrito>,
     total: Double
 ) {
-
+//holita
     val context = LocalContext.current
 
     var cliente by remember { mutableStateOf("") }
