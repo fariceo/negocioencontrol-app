@@ -39,6 +39,8 @@ import android.content.Intent
 import androidx.compose.ui.graphics.Color
 import com.example.negocioencontrol.MainActivity
 import androidx.compose.foundation.clickable
+
+import com.example.negocioencontrol.subir_productos.SubirProductosActivity
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 
@@ -54,6 +56,7 @@ fun ScannerScreen(nombreBD: String) {
     val usuario = prefs.getString("correo_usuario", "") ?: ""
     val total = carrito.sumOf { it.precio * it.cantidad }
 
+    var codigoParaSubir by remember { mutableStateOf("") }
     var seccionActiva by remember { mutableStateOf("scanner") }
 
     fun recargarCarrito() {
@@ -84,12 +87,30 @@ fun ScannerScreen(nombreBD: String) {
             buscarProductoAPI(codigo, nombreBD, context) { prod ->
 
                 if (prod != null) {
+
                     producto = prod
 
                     agregarAlCarritoAPI(nombreBD, usuario, prod.id, "1", context) {
                         recargarCarrito()
-                        seccionActiva = "carrito" // 🔥 UX PRO
+                        seccionActiva = "carrito"
                     }
+
+                } else {
+
+                    android.app.AlertDialog.Builder(context)
+                        .setTitle("Producto no encontrado")
+                        .setMessage("¿Quieres subir este producto?")
+                        .setPositiveButton("Sí") { _, _ ->
+
+                            val intent = Intent(context, SubirProductosActivity::class.java)
+
+                            intent.putExtra("codigo_barra", codigo)
+                            intent.putExtra("nombre_bd", nombreBD)
+
+                            context.startActivity(intent)
+                        }
+                        .setNegativeButton("Cancelar", null)
+                        .show()
                 }
 
                 iniciarScanner()
@@ -334,6 +355,13 @@ fun ScannerScreen(nombreBD: String) {
                     )
                 }
             }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+// =========================
+// 🔹 SUBIR PRODUCTO
+// =========================
+
         }
     }
 }
@@ -367,21 +395,6 @@ fun BusquedaManualProductoPanel(
                 text = if (mostrarBusqueda) "🔽 Ocultar búsqueda" else "🔍 Buscar producto manual",
                 fontSize = 16.sp
             )
-        }
-
-        AnimatedVisibility(
-            visible = mostrarBusqueda,
-            enter = expandVertically(),
-            exit = shrinkVertically()
-        ) {
-
-            BusquedaManualProducto(
-                nombreBD = nombreBD,
-                usuario = usuario,
-                recargarCarrito = { recargarCarrito() },
-                onClose = { mostrarBusqueda = false }
-            )
-
         }
 
     }
