@@ -1,8 +1,13 @@
 package com.example.negocioencontrol.subir_productos
 
 import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.net.Uri
+import android.os.Bundle
 import android.widget.Toast
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
@@ -17,25 +22,19 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.android.volley.Request
 import com.android.volley.toolbox.Volley
-import org.json.JSONObject
-
-import com.example.negocioencontrol.network.VolleyMultipartRequest
 import com.android.volley.Response
-
-import android.os.Bundle
-import androidx.activity.ComponentActivity
-import androidx.activity.compose.setContent
+import com.example.negocioencontrol.network.VolleyMultipartRequest
+import org.json.JSONObject
+import java.io.ByteArrayOutputStream
 
 class SubirProductosActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // 🔥 LEER DESDE SHAREDPREFERENCES
         val prefs = getSharedPreferences("sesion", Context.MODE_PRIVATE)
         val nombreBD = prefs.getString("nombre_bd", "") ?: ""
 
-        // 🔍 DEBUG (MUY IMPORTANTE)
         Toast.makeText(this, "BD: $nombreBD", Toast.LENGTH_LONG).show()
 
         val codigoBarra = intent.getStringExtra("codigo_barra") ?: ""
@@ -48,32 +47,39 @@ class SubirProductosActivity : ComponentActivity() {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-
 fun SubirProductoScreen(nombreBD: String, codigoBarra: String) {
 
     val context = LocalContext.current
 
     var producto by remember { mutableStateOf("") }
     var descripcion by remember { mutableStateOf("") }
-    var codigo by remember { mutableStateOf("") }
+    var codigo by remember { mutableStateOf(codigoBarra) }
     var cantidad by remember { mutableStateOf("") }
     var stock by remember { mutableStateOf("") }
     var precio by remember { mutableStateOf("") }
     var categoria by remember { mutableStateOf("") }
 
+    // 📸 IMAGENES
+    var imageBitmap by remember { mutableStateOf<Bitmap?>(null) }
     var imageUri by remember { mutableStateOf<Uri?>(null) }
-    var bitmap by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
 
-    // 📸 Selector de imagen
-    val launcher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
+    // 📸 CÁMARA
+    val cameraLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.TakePicturePreview()
+    ) { bitmap ->
+        bitmap?.let {
+            imageBitmap = it
+            imageUri = null
+        }
+    }
+
+    // 🖼 GALERÍA
+    val galleryLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.GetContent()
     ) { uri ->
-
-        imageUri = uri
-
         uri?.let {
-            val input = context.contentResolver.openInputStream(it)
-            bitmap = android.graphics.BitmapFactory.decodeStream(input)
+            imageUri = it
+            imageBitmap = null
         }
     }
 
@@ -95,13 +101,23 @@ fun SubirProductoScreen(nombreBD: String, codigoBarra: String) {
         Spacer(modifier = Modifier.height(10.dp))
 
         Button(onClick = {
-            launcher.launch("image/*")
+            cameraLauncher.launch(null)
         }) {
-            Text("Seleccionar Imagen")
+            Text("Tomar Foto")
         }
 
-        bitmap?.let {
-            Spacer(modifier = Modifier.height(10.dp))
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Button(onClick = {
+            galleryLauncher.launch("image/*")
+        }) {
+            Text("Seleccionar de Galería")
+        }
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        // 📸 PREVIEW CÁMARA
+        imageBitmap?.let {
             Image(
                 bitmap = it.asImageBitmap(),
                 contentDescription = null,
@@ -109,6 +125,25 @@ fun SubirProductoScreen(nombreBD: String, codigoBarra: String) {
                     .fillMaxWidth()
                     .height(200.dp)
             )
+        }
+
+        // 🖼 PREVIEW GALERÍA
+        imageUri?.let { uri ->
+            val bitmap = remember(uri) {
+                context.contentResolver.openInputStream(uri)?.use {
+                    BitmapFactory.decodeStream(it)
+                }
+            }
+
+            bitmap?.let {
+                Image(
+                    bitmap = it.asImageBitmap(),
+                    contentDescription = null,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(200.dp)
+                )
+            }
         }
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -125,17 +160,27 @@ fun SubirProductoScreen(nombreBD: String, codigoBarra: String) {
                     stock,
                     precio,
                     categoria,
+                    imageBitmap,
                     imageUri
                 )
             },
-            colors = ButtonDefaults.buttonColors(containerColor = androidx.compose.ui.graphics.Color(0xFF27AE60))
+            colors = ButtonDefaults.buttonColors(
+                containerColor = androidx.compose.ui.graphics.Color(0xFF27AE60)
+            )
         ) {
             Text("Guardar Producto")
         }
     }
 }
 
+// 🔥 CONVERTIR BITMAP
+fun bitmapToBytes(bitmap: Bitmap): ByteArray {
+    val stream = ByteArrayOutputStream()
+    bitmap.compress(Bitmap.CompressFormat.JPEG, 90, stream)
+    return stream.toByteArray()
+}
 
+// 🚀 SUBIDA
 fun subirProducto(
     context: Context,
     negocio: String,
@@ -146,6 +191,7 @@ fun subirProducto(
     stock: String,
     precio: String,
     categoria: String,
+    imageBitmap: Bitmap?,
     imageUri: Uri?
 ) {
 
@@ -157,8 +203,6 @@ fun subirProducto(
         Response.Listener { response ->
 
             val responseStr = String(response.data)
-            println("RESPUESTA SERVER: $responseStr")
-
             val json = JSONObject(responseStr)
 
             Toast.makeText(context, responseStr, Toast.LENGTH_LONG).show()
@@ -169,13 +213,12 @@ fun subirProducto(
 
         },
         Response.ErrorListener { error ->
-            error.printStackTrace()
 
             val mensaje = error.networkResponse?.data?.toString(Charsets.UTF_8)
                 ?: error.message
                 ?: "Error desconocido"
 
-            Toast.makeText(context, "Error: $mensaje", Toast.LENGTH_LONG).show()
+            Toast.makeText(context, mensaje, Toast.LENGTH_LONG).show()
         }
     ) {
 
@@ -197,9 +240,19 @@ fun subirProducto(
 
             val params = HashMap<String, DataPart>()
 
-            imageUri?.let {
-                val bytes = context.contentResolver.openInputStream(it)?.use { stream ->
-                    stream.readBytes()
+            // 📸 Cámara
+            imageBitmap?.let {
+                params["imagen"] = DataPart(
+                    "producto.jpg",
+                    bitmapToBytes(it),
+                    "image/jpeg"
+                )
+            }
+
+            // 🖼 Galería
+            imageUri?.let { uri ->
+                val bytes = context.contentResolver.openInputStream(uri)?.use {
+                    it.readBytes()
                 }
 
                 if (bytes != null) {
