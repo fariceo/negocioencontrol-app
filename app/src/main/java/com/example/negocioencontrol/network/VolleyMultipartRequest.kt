@@ -13,9 +13,11 @@ abstract class VolleyMultipartRequest(
 ) : Request<NetworkResponse>(method, url, errorListener) {
 
     private val boundary = "apiclient-" + System.currentTimeMillis()
+    private val lineEnd = "\r\n"
+    private val twoHyphens = "--"
 
     override fun getBodyContentType(): String {
-        return "multipart/form-data;boundary=$boundary"
+        return "multipart/form-data; boundary=$boundary"
     }
 
     override fun parseNetworkResponse(response: NetworkResponse): Response<NetworkResponse> {
@@ -26,38 +28,17 @@ abstract class VolleyMultipartRequest(
         mListener.onResponse(response)
     }
 
-    override fun getBody(): ByteArray {
-        val bos = ByteArrayOutputStream()
-        val dos = DataOutputStream(bos)
-
-        try {
-            // PARAMS
-            val params = params
-            if (params != null) {
-                for ((key, value) in params) {
-                    writeFormField(dos, key, value)
-                }
-            }
-
-            // FILES
-            val data = getByteData()
-            if (data != null) {
-                for ((key, value) in data) {
-                    writeFileField(dos, key, value)
-                }
-            }
-
-            dos.writeBytes("--$boundary--\r\n")
-
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-
-        return bos.toByteArray()
+    override fun getHeaders(): MutableMap<String, String> {
+        return hashMapOf(
+            "Connection" to "keep-alive"
+        )
     }
 
-    // 👇 IMPORTANTE
-    open fun getByteData(): Map<String, DataPart>? = null
+    // 🔥 USAR ESTE en lugar de getParams()
+    open fun getParamsMultipart(): Map<String, String> = emptyMap()
+
+    // 🔥 PARA ARCHIVOS
+    open fun getByteData(): Map<String, DataPart> = emptyMap()
 
     data class DataPart(
         val fileName: String,
@@ -65,17 +46,46 @@ abstract class VolleyMultipartRequest(
         val type: String
     )
 
-    private fun writeFormField(dos: DataOutputStream, name: String, value: String) {
-        dos.writeBytes("--$boundary\r\n")
-        dos.writeBytes("Content-Disposition: form-data; name=\"$name\"\r\n\r\n")
-        dos.writeBytes("$value\r\n")
-    }
+    override fun getBody(): ByteArray {
+        val bos = ByteArrayOutputStream()
+        val dos = DataOutputStream(bos)
 
-    private fun writeFileField(dos: DataOutputStream, name: String, data: DataPart) {
-        dos.writeBytes("--$boundary\r\n")
-        dos.writeBytes("Content-Disposition: form-data; name=\"$name\"; filename=\"${data.fileName}\"\r\n")
-        dos.writeBytes("Content-Type: ${data.type}\r\n\r\n")
-        dos.write(data.content)
-        dos.writeBytes("\r\n")
+        try {
+
+            // 🔥 PARAMS
+            val params = getParamsMultipart()
+            for ((key, value) in params) {
+                dos.writeBytes(twoHyphens + boundary + lineEnd)
+                dos.writeBytes("Content-Disposition: form-data; name=\"$key\"$lineEnd")
+                dos.writeBytes("Content-Type: text/plain; charset=UTF-8$lineEnd")
+                dos.writeBytes(lineEnd)
+                dos.writeBytes(value + lineEnd)
+            }
+
+            // 🔥 FILES
+            val data = getByteData()
+            for ((key, dataPart) in data) {
+                dos.writeBytes(twoHyphens + boundary + lineEnd)
+                dos.writeBytes(
+                    "Content-Disposition: form-data; name=\"$key\"; filename=\"${dataPart.fileName}\"$lineEnd"
+                )
+                dos.writeBytes("Content-Type: ${dataPart.type}$lineEnd")
+                dos.writeBytes("Content-Transfer-Encoding: binary$lineEnd") // 🔥 ESTA LÍNEA
+                dos.writeBytes(lineEnd)
+
+                dos.write(dataPart.content)
+                dos.writeBytes(lineEnd)
+            }
+
+            // 🔥 END
+            dos.writeBytes(twoHyphens + boundary + twoHyphens + lineEnd)
+
+            dos.flush()
+
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+
+        return bos.toByteArray()
     }
 }

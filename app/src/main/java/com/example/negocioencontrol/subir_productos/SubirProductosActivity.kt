@@ -31,8 +31,17 @@ class SubirProductosActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        // 🔥 LEER DESDE SHAREDPREFERENCES
+        val prefs = getSharedPreferences("sesion", Context.MODE_PRIVATE)
+        val nombreBD = prefs.getString("nombre_bd", "") ?: ""
+
+        // 🔍 DEBUG (MUY IMPORTANTE)
+        Toast.makeText(this, "BD: $nombreBD", Toast.LENGTH_LONG).show()
+
+        val codigoBarra = intent.getStringExtra("codigo_barra") ?: ""
+
         setContent {
-            SubirProductoScreen()
+            SubirProductoScreen(nombreBD, codigoBarra)
         }
     }
 }
@@ -40,7 +49,7 @@ class SubirProductosActivity : ComponentActivity() {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 
-fun SubirProductoScreen() {
+fun SubirProductoScreen(nombreBD: String, codigoBarra: String) {
 
     val context = LocalContext.current
 
@@ -59,7 +68,9 @@ fun SubirProductoScreen() {
     val launcher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri ->
+
         imageUri = uri
+
         uri?.let {
             val input = context.contentResolver.openInputStream(it)
             bitmap = android.graphics.BitmapFactory.decodeStream(input)
@@ -106,6 +117,7 @@ fun SubirProductoScreen() {
             onClick = {
                 subirProducto(
                     context,
+                    nombreBD,
                     producto,
                     descripcion,
                     codigo,
@@ -126,6 +138,7 @@ fun SubirProductoScreen() {
 
 fun subirProducto(
     context: Context,
+    negocio: String,
     producto: String,
     descripcion: String,
     codigo: String,
@@ -142,17 +155,34 @@ fun subirProducto(
         Request.Method.POST,
         url,
         Response.Listener { response ->
-            val json = JSONObject(String(response.data))
-            Toast.makeText(context, json.getString("msg"), Toast.LENGTH_LONG).show()
+
+            val responseStr = String(response.data)
+            println("RESPUESTA SERVER: $responseStr")
+
+            val json = JSONObject(responseStr)
+
+            Toast.makeText(context, responseStr, Toast.LENGTH_LONG).show()
+
+            if (json.optBoolean("ok", false)) {
+                (context as? ComponentActivity)?.finish()
+            }
+
         },
         Response.ErrorListener { error ->
-            Toast.makeText(context, "Error: ${error.message}", Toast.LENGTH_LONG).show()
+            error.printStackTrace()
+
+            val mensaje = error.networkResponse?.data?.toString(Charsets.UTF_8)
+                ?: error.message
+                ?: "Error desconocido"
+
+            Toast.makeText(context, "Error: $mensaje", Toast.LENGTH_LONG).show()
         }
     ) {
 
-        override fun getParams(): MutableMap<String, String> {
+        override fun getParamsMultipart(): Map<String, String> {
             return hashMapOf(
                 "action" to "crear",
+                "nombre_bd" to negocio,
                 "producto" to producto,
                 "descripcion" to descripcion,
                 "codigo_barra" to codigo,
@@ -163,18 +193,22 @@ fun subirProducto(
             )
         }
 
-        override fun getByteData(): MutableMap<String, DataPart> {
+        override fun getByteData(): Map<String, DataPart> {
+
             val params = HashMap<String, DataPart>()
 
             imageUri?.let {
-                val inputStream = context.contentResolver.openInputStream(it)
-                val bytes = inputStream!!.readBytes()
+                val bytes = context.contentResolver.openInputStream(it)?.use { stream ->
+                    stream.readBytes()
+                }
 
-                params["imagen"] = DataPart(
-                    "producto.jpg",
-                    bytes,
-                    "image/jpeg"
-                )
+                if (bytes != null) {
+                    params["imagen"] = DataPart(
+                        "producto.jpg",
+                        bytes,
+                        "image/jpeg"
+                    )
+                }
             }
 
             return params

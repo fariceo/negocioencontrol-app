@@ -368,6 +368,7 @@ fun ScannerScreen(nombreBD: String) {
 
 
 @Composable
+
 fun BusquedaManualProductoPanel(
     nombreBD: String,
     usuario: String,
@@ -383,18 +384,26 @@ fun BusquedaManualProductoPanel(
             modifier = Modifier.fillMaxWidth(),
             colors = ButtonDefaults.buttonColors(
                 containerColor = Color(0xFF16A34A),
-                contentColor = androidx.compose.ui.graphics.Color.White
+                contentColor = Color.White
             ),
-            shape = RoundedCornerShape(12.dp),
-            elevation = ButtonDefaults.buttonElevation(
-                defaultElevation = 6.dp,
-                pressedElevation = 2.dp
-            )
+            shape = RoundedCornerShape(12.dp)
         ) {
             Text(
                 text = if (mostrarBusqueda) "🔽 Ocultar búsqueda" else "🔍 Buscar producto manual",
                 fontSize = 16.sp
             )
+        }
+
+        // 🔥 AQUÍ ESTÁ LA CLAVE
+        AnimatedVisibility(visible = mostrarBusqueda) {
+
+            BusquedaManualProducto(
+                nombreBD = nombreBD,
+                usuario = usuario,
+                recargarCarrito = recargarCarrito,
+                onClose = { mostrarBusqueda = false }
+            )
+
         }
 
     }
