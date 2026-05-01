@@ -5,15 +5,15 @@ plugins {
 }
 
 android {
-    namespace = "com.example.negocioencontrol"
-    compileSdk = 34
+    namespace = "com.negocioencontrol"
+    compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.example.negocioencontrol"
+        applicationId = "com.negocioencontrol"
         minSdk = 21
-        targetSdk = 34
-        versionCode = 1
-        versionName = "1.0"
+        targetSdk = 35
+        versionCode = 5
+        versionName = "1.5"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true
@@ -71,6 +71,8 @@ dependencies {
     implementation("androidx.compose.material:material-icons-extended")
     implementation("androidx.constraintlayout:constraintlayout:2.2.1")
     implementation(platform("androidx.compose:compose-bom:2023.03.00"))
+    implementation(platform("androidx.compose:compose-bom:2023.03.00"))
+    androidTestImplementation(platform("androidx.compose:compose-bom:2023.03.00"))
     androidTestImplementation(platform("androidx.compose:compose-bom:2023.03.00"))
 
     debugImplementation("androidx.compose.ui:ui-tooling")
