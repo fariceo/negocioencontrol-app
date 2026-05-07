@@ -11,20 +11,30 @@
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
         android:icon="@mipmap/negocioencontrol_ic"
-        android:label="NegocioEnControl"
+        android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.Probando"
         tools:targetApi="31">
+        <activity
+            android:name=".gastos.GastosActivity"
+            android:exported="false"
+            android:label="@string/title_activity_gastos"
+            android:theme="@style/Theme.Probando" />
+        <!-- 👇 AGREGA ESTO -->
+        <activity
+            android:name=".login.RegistroActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Probando" />
         <activity
             android:name=".subir_productos.SubirProductosActivity"
             android:exported="false"
             android:theme="@style/Theme.Probando" />
         <activity
             android:name=".scanner.CustomScannerActivity"
-            android:exported="false" /> <!-- Launcher ahora es LoginScreen -->
+            android:exported="false" />
         <activity
-            android:name=".LoginScreen"
+            android:name=".login.LoginScreen"
             android:exported="true"
             android:label="@string/app_name"
             android:theme="@style/Theme.Probando">
@@ -33,7 +43,7 @@
 
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-        </activity> <!-- MainActivity ya no es launcher -->
+        </activity>
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -42,6 +52,10 @@
         <activity
             android:name=".scanner.ScannerActivity"
             android:exported="false" />
+        <activity
+            android:name=".ventas.VentasActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Probando" />
 
         <service
             android:name=".MyFirebaseMessagingService"

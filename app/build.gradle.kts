@@ -5,15 +5,16 @@ plugins {
 }
 
 android {
-    namespace = "com.example.negocioencontrol"
-    compileSdk = 34
+    namespace = "com.negocioencontrol"
+    compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.example.negocioencontrol"
+        applicationId = "com.negocioencontrol"
         minSdk = 21
-        targetSdk = 34
-        versionCode = 1
-        versionName = "1.0"
+        targetSdk = 35
+        //aqui cambiamos la version para playconsole
+        versionCode = 11
+        versionName = "1.11"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true
@@ -43,7 +44,8 @@ android {
     }
 
     composeOptions {
-        kotlinCompilerExtensionVersion = "1.4.3"
+        // Verifica si hay una versión más reciente
+        kotlinCompilerExtensionVersion = "1.5.12"
     }
 
     packaging {
@@ -60,23 +62,28 @@ dependencies {
     implementation("androidx.appcompat:appcompat:1.6.1")
     implementation("com.google.android.material:material:1.11.0")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.6.1")
-    implementation("androidx.activity:activity-compose:1.7.0")
+
+    implementation("androidx.activity:activity-compose:1.9.0")
 
     // Compose
-    implementation(platform("androidx.compose:compose-bom:2023.03.00"))
+
+    implementation(platform("androidx.compose:compose-bom:2024.04.01"))
+
+    implementation("androidx.compose.material:material-icons-extended")
     implementation("androidx.compose.ui:ui")
-    implementation("androidx.compose.ui:ui-graphics")
+
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.material3:material3")
-    implementation("androidx.compose.material:material-icons-extended")
-    implementation("androidx.constraintlayout:constraintlayout:2.2.1")
-    implementation(platform("androidx.compose:compose-bom:2023.03.00"))
-    androidTestImplementation(platform("androidx.compose:compose-bom:2023.03.00"))
 
+    implementation("androidx.constraintlayout:constraintlayout:2.2.1")
+
+
+
+
+
+    // Pruebas de UI y Compose
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
-
-    androidTestImplementation(platform("androidx.compose:compose-bom:2023.03.00"))
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
 
     // Navigation
@@ -103,6 +110,13 @@ dependencies {
 
     // Firebase Cloud Messaging
     implementation("com.google.firebase:firebase-messaging:23.4.1")
+
+    // Otras dependencias
+    implementation("com.google.android.play:app-update:2.1.0")
+    implementation("com.google.android.play:app-update-ktx:2.1.0")
+    implementation("com.squareup.retrofit2:retrofit:2.9.0")
+    implementation("com.squareup.retrofit2:converter-gson:2.9.0")
+    implementation("com.squareup.okhttp3:okhttp:4.9.1")
 
 
     // Tests
