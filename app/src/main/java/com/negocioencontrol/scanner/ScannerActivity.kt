@@ -8,17 +8,23 @@ import androidx.activity.compose.setContent
 
 class ScannerActivity : ComponentActivity() {
 
-    lateinit var prefs: SharedPreferences
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        prefs = getSharedPreferences("sesion", Context.MODE_PRIVATE)
-        val nombreBD = prefs.getString("nombre_bd", "") ?: ""
-        val usuario = prefs.getString("usuario", "") ?: ""
+        val prefs = getSharedPreferences("sesion", MODE_PRIVATE)
 
+        val nombreBD = prefs.getString("nombre_bd", "") ?: ""
+        val nombreNegocio = prefs.getString("nombre_negocio", "") ?: ""
         setContent {
-            ScannerScreen(nombreBD = nombreBD)
+
+            val usuario = prefs.getString("correo_usuario", "") ?: ""
+
+            ScannerScreen(
+                nombreBD = nombreBD,
+                nombreNegocio = nombreNegocio,
+                usuario = usuario,
+                carrito = emptyList() // inicial vacío
+            )
         }
     }
 }

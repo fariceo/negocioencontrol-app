@@ -1,5 +1,6 @@
 <resources>
-    <string name="app_name">probando</string>
+    <string name="app_name">Negocio en Control</string>
     <string name="title_activity_subir_producto_screen.kt">SubirProductoScreen.kt</string>
     <string name="title_activity_registro">RegistroActivity</string>
+    <string name="title_activity_gastos">GastosActivity</string>
 </resources>
