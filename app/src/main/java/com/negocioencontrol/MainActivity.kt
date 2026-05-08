@@ -97,6 +97,11 @@ class MainActivity : ComponentActivity() {
                         Intent(this, com.negocioencontrol.gastos.GastosActivity::class.java)
                     )
                 },
+                onBodegaClick = {
+                    startActivity(
+                        Intent(this, com.negocioencontrol.bodega.BodegaActivity::class.java)
+                    )
+                },
                 onLogout = {
                     prefs.edit().clear().apply()
 
@@ -179,6 +184,7 @@ fun MainScreen(
     onScanClick: () -> Unit,
     onVentasClick: () -> Unit,
     onReportesClick: () -> Unit,
+    onBodegaClick: () -> Unit,
     onLogout: () -> Unit
 ) {
     Column(modifier = Modifier.fillMaxSize()) {
@@ -209,7 +215,7 @@ fun MainScreen(
                 onClick = onScanClick,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text("Agregar producto")
+                Text("Ver carrito y finalizar pedido")
             }
 
             Button(
@@ -224,6 +230,13 @@ fun MainScreen(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text("Reportes")
+            }
+
+            Button(
+                onClick = onBodegaClick,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Bodega")
             }
 
             Spacer(modifier = Modifier.weight(1f))

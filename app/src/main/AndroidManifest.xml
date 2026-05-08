@@ -3,9 +3,9 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.INTERNET" />
-    <uses-permission android:name="android.permission.CAMERA" />
-    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.CAMERA"/>
     <application
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
@@ -16,12 +16,28 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.Probando"
         tools:targetApi="31">
+
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.provider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
+
+        <activity
+            android:name=".bodega.BodegaActivity"
+            android:exported="false"
+            android:label="@string/title_activity_bodega"
+            android:theme="@style/Theme.Probando" />
         <activity
             android:name=".gastos.GastosActivity"
             android:exported="false"
             android:label="@string/title_activity_gastos"
-            android:theme="@style/Theme.Probando" />
-        <!-- 👇 AGREGA ESTO -->
+            android:theme="@style/Theme.Probando" /> <!-- 👇 AGREGA ESTO -->
         <activity
             android:name=".login.RegistroActivity"
             android:exported="false"
