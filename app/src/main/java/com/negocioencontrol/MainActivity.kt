@@ -24,6 +24,7 @@ import androidx.compose.ui.unit.sp
 import com.negocioencontrol.scanner.ScannerActivity
 import com.negocioencontrol.login.LoginScreen
 import com.negocioencontrol.gastos.GastosActivity
+import com.negocioencontrol.productos.ProductosActivity
 
 import com.google.firebase.messaging.FirebaseMessaging
 
@@ -86,6 +87,11 @@ class MainActivity : ComponentActivity() {
                 nombreNegocio = nombreNegocio,
                 onScanClick = {
                     startActivity(Intent(this, ScannerActivity::class.java))
+                },
+                onProductosClick = {
+                    startActivity(
+                        Intent(this, com.negocioencontrol.productos.ProductosActivity::class.java)
+                    )
                 },
                 onVentasClick = {
                     startActivity(
@@ -181,6 +187,7 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun MainScreen(
     nombreNegocio: String,
+    onProductosClick: () -> Unit,
     onScanClick: () -> Unit,
     onVentasClick: () -> Unit,
     onReportesClick: () -> Unit,
@@ -211,6 +218,12 @@ fun MainScreen(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
 
+            Button(
+                onClick = onProductosClick,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Productos")
+            }
             Button(
                 onClick = onScanClick,
                 modifier = Modifier.fillMaxWidth()

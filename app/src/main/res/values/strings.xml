@@ -4,4 +4,5 @@
     <string name="title_activity_registro">RegistroActivity</string>
     <string name="title_activity_gastos">GastosActivity</string>
     <string name="title_activity_bodega">BodegaActivity</string>
+    <string name="title_activity_productos">ProductosActivity</string>
 </resources>
