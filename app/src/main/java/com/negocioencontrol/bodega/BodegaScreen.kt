@@ -1,5 +1,6 @@
 package com.negocioencontrol.bodega
 
+import android.graphics.Bitmap
 import android.widget.Toast
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -79,17 +80,7 @@ fun BodegaScreen(nombreBD: String) {
                     val success =
                         json.getBoolean("success")
 
-                    if (!success) {
 
-                        Toast.makeText(
-                            context,
-                            json.optString("msg"),
-                            Toast.LENGTH_SHORT
-                        ).show()
-
-                        loading = false
-                       
-                    }
 
                     val arr =
                         json.getJSONArray("productos")
@@ -387,6 +378,7 @@ fun BodegaScreen(nombreBD: String) {
                     categoria,
                     codigoBarra,
                     stockInicial,
+                    imageBitmap: Bitmap?,
                     imagenUri ->
 
                 guardarProducto(
@@ -410,6 +402,8 @@ fun BodegaScreen(nombreBD: String) {
                     codigoBarra = codigoBarra,
 
                     stockInicial = stockInicial,
+
+                    imageBitmap = imageBitmap,
 
                     imagenUri = imagenUri,
 

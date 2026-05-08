@@ -1,5 +1,9 @@
+// AgregarEditarProductoDialog.kt
+
 package com.negocioencontrol.bodega
 
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -10,17 +14,11 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import coil.compose.rememberAsyncImagePainter
-import androidx.compose.ui.platform.LocalContext
-import android.graphics.Bitmap
-
-import androidx.compose.ui.graphics.asImageBitmap
-import androidx.core.content.FileProvider
-import java.io.File
-
-
 
 @Composable
 fun AgregarEditarProductoDialog(
@@ -38,6 +36,7 @@ fun AgregarEditarProductoDialog(
         categoria: String,
         codigoBarra: String,
         stockInicial: String,
+        imageBitmap: Bitmap?,
         imagenUri: Uri?
 
     ) -> Unit
@@ -81,14 +80,15 @@ fun AgregarEditarProductoDialog(
         mutableStateOf<Uri?>(null)
     }
 
-    var cameraImageUri by remember {
-        mutableStateOf<Uri?>(null)
+    var imageBitmap by remember {
+        mutableStateOf<Bitmap?>(null)
     }
 
     val context = LocalContext.current
-// =========================
-// GALERIA
-// =========================
+
+    // =========================
+    // GALERIA
+    // =========================
     val galleryLauncher =
         rememberLauncherForActivityResult(
             contract =
@@ -96,20 +96,21 @@ fun AgregarEditarProductoDialog(
         ) {
 
             imagenUri = it
+            imageBitmap = null
         }
 
-// =========================
-// CAMARA
-// =========================
+    // =========================
+    // CAMARA
+    // =========================
     val cameraLauncher =
         rememberLauncherForActivityResult(
-            contract =
-            ActivityResultContracts.TakePicture()
-        ) { success ->
+            ActivityResultContracts.TakePicturePreview()
+        ) { bitmap ->
 
-            if (success) {
+            bitmap?.let {
 
-                imagenUri = cameraImageUri
+                imageBitmap = it
+                imagenUri = null
             }
         }
 
@@ -132,6 +133,7 @@ fun AgregarEditarProductoDialog(
                         categoria,
                         codigoBarra,
                         stockInicial,
+                        imageBitmap,
                         imagenUri
                     )
                 }
@@ -277,9 +279,6 @@ fun AgregarEditarProductoDialog(
                     Arrangement.spacedBy(10.dp)
                 ) {
 
-                    // =========================
-                    // GALERIA
-                    // =========================
                     Button(
                         onClick = {
 
@@ -291,27 +290,10 @@ fun AgregarEditarProductoDialog(
                         Text("Galería")
                     }
 
-                    // =========================
-                    // CAMARA
-                    // =========================
                     Button(
                         onClick = {
 
-                            val file = File(
-                                context.cacheDir,
-                                "camera_photo.jpg"
-                            )
-
-                            val uri = FileProvider.getUriForFile(
-                                context,
-                                "${context.packageName}.provider",
-                                file
-                            )
-
-                            cameraImageUri = uri
-
-                            cameraLauncher.launch(uri)
-
+                            cameraLauncher.launch(null)
                         },
                         modifier = Modifier.weight(1f)
                     ) {
@@ -324,11 +306,11 @@ fun AgregarEditarProductoDialog(
 
                 when {
 
-                    imagenUri != null -> {
+                    imageBitmap != null -> {
 
                         Image(
-                            painter =
-                            rememberAsyncImagePainter(imagenUri),
+                            bitmap =
+                            imageBitmap!!.asImageBitmap(),
 
                             contentDescription = null,
 
@@ -339,6 +321,35 @@ fun AgregarEditarProductoDialog(
                             contentScale =
                             ContentScale.Crop
                         )
+                    }
+
+                    imagenUri != null -> {
+
+                        val bitmap = remember(imagenUri) {
+
+                            context.contentResolver
+                                .openInputStream(imagenUri!!)
+                                ?.use {
+                                    BitmapFactory.decodeStream(it)
+                                }
+                        }
+
+                        bitmap?.let {
+
+                            Image(
+                                bitmap =
+                                it.asImageBitmap(),
+
+                                contentDescription = null,
+
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(200.dp),
+
+                                contentScale =
+                                ContentScale.Crop
+                            )
+                        }
                     }
 
                     !producto?.imagen.isNullOrBlank() -> {

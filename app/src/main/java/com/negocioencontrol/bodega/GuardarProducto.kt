@@ -1,11 +1,28 @@
+// GuardarProducto.kt
+
 package com.negocioencontrol.bodega
 
 import android.content.Context
+import android.graphics.Bitmap
 import android.net.Uri
 import android.widget.Toast
 import com.android.volley.Request
 import com.android.volley.toolbox.Volley
 import org.json.JSONObject
+import java.io.ByteArrayOutputStream
+
+fun bitmapToBytes(bitmap: Bitmap): ByteArray {
+
+    val stream = ByteArrayOutputStream()
+
+    bitmap.compress(
+        Bitmap.CompressFormat.JPEG,
+        90,
+        stream
+    )
+
+    return stream.toByteArray()
+}
 
 fun guardarProducto(
 
@@ -28,6 +45,8 @@ fun guardarProducto(
     codigoBarra: String,
 
     stockInicial: String,
+
+    imageBitmap: Bitmap?,
 
     imagenUri: Uri?,
 
@@ -78,10 +97,18 @@ fun guardarProducto(
 
         {
 
+            it.printStackTrace()
+
+            val mensaje =
+                it.networkResponse?.data
+                    ?.toString(Charsets.UTF_8)
+                    ?: it.message
+                    ?: "Error conexión"
+
             Toast.makeText(
                 context,
-                "Error conexión",
-                Toast.LENGTH_SHORT
+                mensaje,
+                Toast.LENGTH_LONG
             ).show()
         }
 
@@ -122,25 +149,56 @@ fun guardarProducto(
             val params =
                 HashMap<String, DataPart>()
 
-            if (imagenUri != null) {
+            // =========================
+            // FOTO CAMARA
+            // =========================
+            imageBitmap?.let {
 
-                val inputStream =
-                    context.contentResolver
-                        .openInputStream(imagenUri)
+                params["imagen"] = DataPart(
 
-                val bytes =
-                    inputStream?.readBytes()
+                    "producto.jpg",
 
-                if (bytes != null) {
+                    bitmapToBytes(it),
 
-                    params["imagen"] = DataPart(
+                    "image/jpeg"
+                )
+            }
 
-                        "foto.jpg",
+            // =========================
+            // FOTO GALERIA
+            // =========================
+            imagenUri?.let { uri ->
 
-                        bytes,
+                try {
 
-                        "image/jpeg"
-                    )
+                    val bytes =
+                        context.contentResolver
+                            .openInputStream(uri)
+                            ?.use {
+                                it.readBytes()
+                            }
+
+                    if (bytes != null) {
+
+                        params["imagen"] = DataPart(
+
+                            "producto.jpg",
+
+                            bytes,
+
+                            "image/jpeg"
+                        )
+                    }
+
+                } catch (e: Exception) {
+
+                    e.printStackTrace()
+
+                    Toast.makeText(
+                        context,
+                        "Error imagen: ${e.message}",
+                        Toast.LENGTH_LONG
+                    ).show()
                 }
             }
 
