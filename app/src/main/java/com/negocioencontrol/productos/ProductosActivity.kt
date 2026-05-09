@@ -1,26 +1,41 @@
-    package com.negocioencontrol.productos
+package com.negocioencontrol.productos
 
-    import android.os.Bundle
-    import androidx.activity.ComponentActivity
-    import androidx.activity.compose.setContent
+import android.os.Bundle
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.compose.runtime.*
 
-    class ProductosActivity : ComponentActivity() {
+class ProductosActivity : ComponentActivity() {
 
-        override fun onCreate(savedInstanceState: Bundle?) {
-            super.onCreate(savedInstanceState)
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
 
-            val prefs = getSharedPreferences("sesion", MODE_PRIVATE)
+        val prefs = getSharedPreferences("sesion", MODE_PRIVATE)
+        val nombreBD = prefs.getString("nombre_bd", "") ?: ""
 
+        setContent {
 
-            val usuario = prefs.getString("correo_usuario", "") ?: ""
-            val nombreBD = prefs.getString("nombre_bd", "") ?: ""
-            val nombreNegocio = prefs.getString("nombre_negocio", "") ?: ""
+            var categoriaSeleccionada by remember { mutableStateOf<String?>(null) }
 
-            setContent {
-                ProductosScreen(
+            if (categoriaSeleccionada == null) {
+
+                CategoriasScreen(
                     nombreBD = nombreBD,
-                    usuario = usuario
+                    onCategoriaClick = { categoria ->
+                        categoriaSeleccionada = categoria
+                    }
+                )
+
+            } else {
+
+                ProductosScreen(
+
+                    categoria = categoriaSeleccionada!!,
+                    onBack = {
+                        categoriaSeleccionada = null
+                    }
                 )
             }
         }
     }
+}

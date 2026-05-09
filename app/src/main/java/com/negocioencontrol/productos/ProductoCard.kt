@@ -10,7 +10,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
-import com.negocioencontrol.Producto
+import com.negocioencontrol.productos.Producto
 @Composable
 fun ProductoCard(
     producto: `Producto`,

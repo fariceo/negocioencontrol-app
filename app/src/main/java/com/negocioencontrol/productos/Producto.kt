@@ -1,4 +1,4 @@
-package com.negocioencontrol
+package com.negocioencontrol.productos
 
 data class Producto(
     val idProducto: String,
