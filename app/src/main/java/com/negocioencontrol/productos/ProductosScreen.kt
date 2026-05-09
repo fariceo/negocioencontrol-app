@@ -34,9 +34,7 @@
         var loading by remember { mutableStateOf(false) }
         var search by remember { mutableStateOf("") }
 
-        val productosFiltrados = productos.filter {
-            it.producto.contains(search, ignoreCase = true)
-        }
+
 
         var carritoCount by remember { mutableStateOf(0) }
         // =========================
@@ -51,7 +49,12 @@
 
             loading = true
 
-            val url = "https://elpollovolantuso.com/negocioencontrol/api/productos_api.php"
+            // 🔥 SI HAY TEXTO -> BUSQUEDA GLOBAL
+            val url = if (search.isBlank()) {
+                "https://elpollovolantuso.com/negocioencontrol/api/productos_api.php"
+            } else {
+                "https://elpollovolantuso.com/negocioencontrol/api/buscar_productos_api.php"
+            }
 
             val request = object : StringRequest(
                 Request.Method.POST,
@@ -59,10 +62,19 @@
                 { response ->
 
                     try {
+
                         val json = JSONObject(response)
 
-                        if (!json.getBoolean("success")) {
-                            Toast.makeText(context, json.getString("msg"), Toast.LENGTH_SHORT).show()
+                        val success = json.optBoolean("success", false)
+
+                        if (!success) {
+
+                            Toast.makeText(
+                                context,
+                                json.optString("msg", "Error"),
+                                Toast.LENGTH_SHORT
+                            ).show()
+
                             loading = false
 
                         }
@@ -89,28 +101,51 @@
                         }
 
                     } catch (e: Exception) {
-                        Toast.makeText(context, "Error JSON: ${e.message}", Toast.LENGTH_SHORT).show()
+
+                        Toast.makeText(
+                            context,
+                            "Error JSON: ${e.message}",
+                            Toast.LENGTH_SHORT
+                        ).show()
                     }
 
                     loading = false
                 },
                 {
+
                     loading = false
-                    Toast.makeText(context, "Error conexión", Toast.LENGTH_SHORT).show()
+
+                    Toast.makeText(
+                        context,
+                        "Error conexión",
+                        Toast.LENGTH_SHORT
+                    ).show()
                 }
             ) {
+
                 override fun getParams(): MutableMap<String, String> {
-                    return hashMapOf(
-                        "nombre_bd" to nombreBD,
-                        "categoria" to categoria
-                    )
+
+                    return if (search.isBlank()) {
+
+                        hashMapOf(
+                            "nombre_bd" to nombreBD,
+                            "categoria" to categoria
+                        )
+
+                    } else {
+
+                        hashMapOf(
+                            "nombre_bd" to nombreBD,
+                            "texto" to search
+                        )
+                    }
                 }
             }
 
             Volley.newRequestQueue(context).add(request)
         }
 
-        LaunchedEffect(Unit) {
+        LaunchedEffect(search) {
             cargarProductos()
         }
 
@@ -160,7 +195,7 @@
             // 📋 LISTA
             LazyColumn {
 
-                items(productosFiltrados) { p ->
+                items(productos) { p -> 
 
                     ProductoCard(producto = p) {
 
