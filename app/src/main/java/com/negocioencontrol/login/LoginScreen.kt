@@ -26,6 +26,9 @@ import com.android.volley.toolbox.Volley
 import org.json.JSONObject
 import com.negocioencontrol.MainActivity
 import com.negocioencontrol.login.RegistroActivity
+import com.negocioencontrol.cajero.CajeroActivity
+import com.negocioencontrol.personas.clientes.ClientesActivity
+
 class LoginScreen : ComponentActivity() {
 
     lateinit var prefs: SharedPreferences
@@ -41,16 +44,30 @@ class LoginScreen : ComponentActivity() {
         val cincoMinutos = 59 * 60 * 1000
 
         if (logueado && tiempoActual - tiempoLogin < cincoMinutos) {
-            startActivity(Intent(this, MainActivity::class.java))
+
+            val rol = prefs.getString("rol", "") ?: ""
+
+            when (rol) {
+
+                "admin" -> {
+                    startActivity(Intent(this, MainActivity::class.java))
+                }
+
+                "cajero" -> {
+                    startActivity(Intent(this, CajeroActivity::class.java))
+                }
+
+                else -> {
+                    startActivity(Intent(this, ClientesActivity::class.java))
+                }
+            }
+
             finish()
             return
         }
 
         setContent {
-            LoginScreenContent(prefs) {
-                startActivity(Intent(this, MainActivity::class.java))
-                finish()
-            }
+            LoginScreenContent(prefs)
         }
     }
 }
@@ -58,10 +75,11 @@ class LoginScreen : ComponentActivity() {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LoginScreenContent(
-    prefs: SharedPreferences,
-    onLoginSuccess: () -> Unit
+    prefs: SharedPreferences
 ) {
     val context = LocalContext.current
+    val activity = context as? ComponentActivity
+
     var correo by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
@@ -87,9 +105,15 @@ fun LoginScreenContent(
             value = password,
             onValueChange = { password = it },
             label = { Text("Contraseña") },
-            visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+            visualTransformation = if (passwordVisible)
+                VisualTransformation.None
+            else
+                PasswordVisualTransformation(),
             trailingIcon = {
-                val icon = if (passwordVisible) Icons.Filled.Visibility else Icons.Filled.VisibilityOff
+                val icon = if (passwordVisible)
+                    Icons.Filled.Visibility
+                else
+                    Icons.Filled.VisibilityOff
 
                 IconButton(onClick = { passwordVisible = !passwordVisible }) {
                     Icon(imageVector = icon, contentDescription = "Mostrar contraseña")
@@ -100,27 +124,33 @@ fun LoginScreenContent(
 
         Button(
             onClick = {
+
                 if (correo.isEmpty() || password.isEmpty()) {
                     Toast.makeText(context, "Completa todos los campos", Toast.LENGTH_SHORT).show()
                     return@Button
                 }
 
                 cargando = true
+
                 val queue = Volley.newRequestQueue(context)
                 val url = "https://elpollovolantuso.com/negocioencontrol/api/api_login.php"
 
                 val request = object : StringRequest(
                     Request.Method.POST, url,
                     { response ->
+
                         cargando = false
+
                         try {
                             val json = JSONObject(response)
                             val success = json.getBoolean("success")
 
                             if (success) {
+
                                 val idUsuario = json.getInt("id_usuario")
                                 val nombreNegocio = json.getString("nombre_negocio")
-                                val nombreBD = json.getString("nombre_bd")
+                                    val nombreBD = json.getString("nombre_bd")
+                                val rol = json.getString("rol")
 
                                 prefs.edit().apply {
                                     putBoolean("logueado", true)
@@ -129,17 +159,53 @@ fun LoginScreenContent(
                                     putString("nombre_negocio", nombreNegocio)
                                     putString("nombre_bd", nombreBD)
                                     putString("correo_usuario", correo)
+                                    putString("rol", rol)
                                     apply()
                                 }
 
-                                Toast.makeText(context, "Bienvenido $nombreNegocio", Toast.LENGTH_SHORT).show()
-                                onLoginSuccess()
+                                Toast.makeText(
+                                    context,
+                                    "Bienvenido a $nombreNegocio",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+
+                                when (rol) {
+
+                                    "admin" -> {
+                                        context.startActivity(
+                                            Intent(context, MainActivity::class.java)
+                                        )
+                                    }
+
+                                    "cajero" -> {
+                                        context.startActivity(
+                                            Intent(context, CajeroActivity::class.java)
+                                        )
+                                    }
+
+                                    else -> {
+                                        context.startActivity(
+                                            Intent(context, ClientesActivity::class.java)
+                                        )
+                                    }
+                                }
+
+                                activity?.finish()
+
                             } else {
-                                Toast.makeText(context, json.getString("message"), Toast.LENGTH_SHORT).show()
+                                Toast.makeText(
+                                    context,
+                                    json.getString("message"),
+                                    Toast.LENGTH_SHORT
+                                ).show()
                             }
 
                         } catch (e: Exception) {
-                            Toast.makeText(context, "Error en respuesta del servidor", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(
+                                context,
+                                "Error en respuesta del servidor",
+                                Toast.LENGTH_SHORT
+                            ).show()
                         }
                     },
                     {
@@ -162,7 +228,6 @@ fun LoginScreenContent(
             Text(if (cargando) "Cargando..." else "Iniciar sesión")
         }
 
-        // 🔗 LINK REGISTRO (SIN NAVCONTROLLER)
         Text(
             text = "¿No tienes cuenta? Regístrate",
             color = Color(0xFF1E88E5),

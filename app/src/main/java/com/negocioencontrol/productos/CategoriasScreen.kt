@@ -99,7 +99,7 @@ fun CategoriasScreen(
             .padding(12.dp)
     ) {
 
-        Text("Categorías", style = MaterialTheme.typography.titleLarge)
+        Text("ºCategorías", style = MaterialTheme.typography.titleLarge)
 
         Spacer(Modifier.height(10.dp))
 

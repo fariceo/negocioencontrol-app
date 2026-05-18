@@ -5,4 +5,9 @@
     <string name="title_activity_gastos">GastosActivity</string>
     <string name="title_activity_bodega">BodegaActivity</string>
     <string name="title_activity_productos">ProductosActivity</string>
+    <string name="title_activity_cajero">CajeroActivity</string>
+    <string name="title_activity_usuarios">UsuariosActivity</string>
+    <string name="title_activity_roles">RolesActivity</string>
+    <string name="title_activity_clientes">ClientesActivity</string>
+    <string name="title_activity_cobros_pagos">CobrosPagosActivity</string>
 </resources>

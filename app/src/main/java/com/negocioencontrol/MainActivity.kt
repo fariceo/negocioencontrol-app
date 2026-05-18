@@ -1,6 +1,5 @@
 package com.negocioencontrol
 
-import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
@@ -25,7 +24,9 @@ import com.negocioencontrol.scanner.ScannerActivity
 import com.negocioencontrol.login.LoginScreen
 import com.negocioencontrol.gastos.GastosActivity
 import com.negocioencontrol.productos.ProductosActivity
-
+import com.negocioencontrol.usuarios.UsuariosActivity
+import com.negocioencontrol.cajero.CajeroActivity
+import com.negocioencontrol.personas.clientes.ClientesActivity
 import com.google.firebase.messaging.FirebaseMessaging
 
 import com.android.volley.toolbox.StringRequest
@@ -37,8 +38,12 @@ import com.google.android.play.core.appupdate.AppUpdateManagerFactory
 import com.google.android.play.core.install.model.AppUpdateType
 import com.google.android.play.core.install.model.UpdateAvailability
 import com.google.android.play.core.install.model.InstallStatus
-
 import com.google.android.play.core.install.InstallStateUpdatedListener
+
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.Icon
+import com.negocioencontrol.cobros.CobrosPagosActivity
 
 
 class MainActivity : ComponentActivity() {
@@ -56,68 +61,60 @@ class MainActivity : ComponentActivity() {
         val nombreNegocio =
             prefs.getString("nombre_negocio", "NEGOCIO EN CONTROL") ?: "NEGOCIO EN CONTROL"
 
-        // 🔥 UPDATE MANAGER
-        appUpdateManager = AppUpdateManagerFactory.create(this)
-        checkForAppUpdate()
+        val rol = prefs.getString("rol", "") ?: ""
 
-        // 🔥 FIREBASE TOKEN
-        FirebaseMessaging.getInstance().token
-            .addOnCompleteListener { task ->
-                if (!task.isSuccessful) {
-                    Log.e("FCM", "Error obteniendo token", task.exception)
-                    return@addOnCompleteListener
-                }
+        if (rol != "admin") {
 
-                val token = task.result
-                val usuario = prefs.getString("correo_usuario", "") ?: ""
-                val negocio = prefs.getString("nombre_negocio", "") ?: ""
-
-                guardarTokenFCM(token, usuario, negocio, this)
+            when (rol) {
+                "cajero" -> startActivity(Intent(this, CajeroActivity::class.java))
+                "cliente" -> startActivity(Intent(this, ClientesActivity::class.java))
+                else -> startActivity(Intent(this, LoginScreen::class.java))
             }
 
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
-            requestPermissions(
-                arrayOf(android.Manifest.permission.POST_NOTIFICATIONS),
-                1001
-            )
+            finish()
+            return
         }
 
         setContent {
+
             MainScreen(
                 nombreNegocio = nombreNegocio,
-                onScanClick = {
-                    startActivity(Intent(this, ScannerActivity::class.java))
-                },
-                onProductosClick = {
-                    startActivity(
-                        Intent(this, com.negocioencontrol.productos.ProductosActivity::class.java)
-                    )
-                },
-                onVentasClick = {
-                    startActivity(
-                        Intent(this, com.negocioencontrol.ventas.VentasActivity::class.java)
-                    )
-                },
-                onReportesClick = {
-                    startActivity(
-                        Intent(this, com.negocioencontrol.gastos.GastosActivity::class.java)
-                    )
-                },
-                onBodegaClick = {
-                    startActivity(
-                        Intent(this, com.negocioencontrol.bodega.BodegaActivity::class.java)
-                    )
+                onScanClick = { startActivity(Intent(this, ScannerActivity::class.java)) },
+                onProductosClick = { startActivity(Intent(this, ProductosActivity::class.java)) },
+                onVentasClick = { startActivity(Intent(this, com.negocioencontrol.ventas.VentasActivity::class.java)) },
+                onReportesClick = { startActivity(Intent(this, GastosActivity::class.java)) },
+                onBodegaClick = { startActivity(Intent(this, com.negocioencontrol.bodega.BodegaActivity::class.java)) },
+                onUsuariosClick = { startActivity(Intent(this, UsuariosActivity::class.java)) },
+                onCobrosPagosClick = {
+                    startActivity(Intent(this, CobrosPagosActivity::class.java))
                 },
                 onLogout = {
                     prefs.edit().clear().apply()
-
-                    val intent = Intent(this, LoginScreen::class.java)
-                    intent.flags =
-                        Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-                    startActivity(intent)
+                    startActivity(Intent(this, LoginScreen::class.java))
+                    finish()
                 }
             )
         }
+
+        // 🔥 DESPUÉS DEL UI (NO BLOQUEA)
+        initBackgroundTasks()
+    }
+
+    private fun initBackgroundTasks() {
+
+        FirebaseMessaging.getInstance().token
+            .addOnCompleteListener { task ->
+                if (task.isSuccessful) {
+                    val token = task.result
+                    val usuario = prefs.getString("correo_usuario", "") ?: ""
+                    val negocio = prefs.getString("nombre_negocio", "") ?: ""
+
+                    guardarTokenFCM(token, usuario, negocio, this)
+                }
+            }
+
+        appUpdateManager = AppUpdateManagerFactory.create(this)
+        checkForAppUpdate()
     }
 
     // =========================
@@ -192,6 +189,8 @@ fun MainScreen(
     onVentasClick: () -> Unit,
     onReportesClick: () -> Unit,
     onBodegaClick: () -> Unit,
+    onUsuariosClick: () -> Unit,
+    onCobrosPagosClick: () -> Unit,
     onLogout: () -> Unit
 ) {
     Column(modifier = Modifier.fillMaxSize()) {
@@ -222,19 +221,43 @@ fun MainScreen(
                 onClick = onProductosClick,
                 modifier = Modifier.fillMaxWidth()
             ) {
+
+                Icon(
+                    imageVector = Icons.Default.Storefront,
+                    contentDescription = "Productos"
+                )
+
+                Spacer(modifier = Modifier.width(8.dp))
+
                 Text("Productos")
             }
             Button(
                 onClick = onScanClick,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text("Ver carrito y finalizar pedido")
+
+                Icon(
+                    imageVector = Icons.Default.ShoppingCart,
+                    contentDescription = "Carrito"
+                )
+
+                Spacer(modifier = Modifier.width(8.dp))
+
+                Text("Ver carrito")
             }
 
             Button(
                 onClick = onVentasClick,
                 modifier = Modifier.fillMaxWidth()
             ) {
+
+                Icon(
+                    imageVector = Icons.Default.PointOfSale,
+                    contentDescription = "Ventas"
+                )
+
+                Spacer(modifier = Modifier.width(8.dp))
+
                 Text("Ver ventas")
             }
 
@@ -242,6 +265,14 @@ fun MainScreen(
                 onClick = onReportesClick,
                 modifier = Modifier.fillMaxWidth()
             ) {
+
+                Icon(
+                    imageVector = Icons.Default.BarChart,
+                    contentDescription = "Reportes"
+                )
+
+                Spacer(modifier = Modifier.width(8.dp))
+
                 Text("Reportes")
             }
 
@@ -249,8 +280,48 @@ fun MainScreen(
                 onClick = onBodegaClick,
                 modifier = Modifier.fillMaxWidth()
             ) {
+
+                Icon(
+                    imageVector = Icons.Default.LocalShipping,
+                    contentDescription = "Bodega"
+                )
+
+                Spacer(modifier = Modifier.width(8.dp))
+
                 Text("Bodega")
             }
+
+            Button(
+                onClick = onUsuariosClick,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+
+                Icon(
+                    imageVector = Icons.Default.Group,
+                    contentDescription = "Usuarios"
+                )
+
+                Spacer(modifier = Modifier.width(8.dp))
+
+                Text("Usuarios")
+
+            }
+
+            Button(
+                onClick = onCobrosPagosClick,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+
+                Icon(
+                    imageVector = Icons.Default.Payments,
+                    contentDescription = "Cobros y Pagos"
+                )
+
+                Spacer(modifier = Modifier.width(8.dp))
+
+                Text("Cobros y Pagos")
+            }
+
 
             Spacer(modifier = Modifier.weight(1f))
 

@@ -17,6 +17,31 @@
         android:theme="@style/Theme.Probando"
         tools:targetApi="31">
         <activity
+            android:name=".cobros.CobrosPagosActivity"
+            android:exported="false"
+            android:label="@string/title_activity_cobros_pagos"
+            android:theme="@style/Theme.Probando" />
+        <activity
+            android:name=".personas.clientes.ClientesActivity"
+            android:exported="false"
+            android:label="@string/title_activity_clientes"
+            android:theme="@style/Theme.Probando" />
+        <activity
+            android:name=".usuarios.RolesActivity"
+            android:exported="false"
+            android:label="@string/title_activity_roles"
+            android:theme="@style/Theme.Probando" />
+        <activity
+            android:name=".usuarios.UsuariosActivity"
+            android:exported="false"
+            android:label="@string/title_activity_usuarios"
+            android:theme="@style/Theme.Probando" />
+        <activity
+            android:name=".cajero.CajeroActivity"
+            android:exported="false"
+            android:label="@string/title_activity_cajero"
+            android:theme="@style/Theme.Probando" />
+        <activity
             android:name=".productos.ProductosActivity"
             android:exported="false"
             android:label="@string/title_activity_productos"
