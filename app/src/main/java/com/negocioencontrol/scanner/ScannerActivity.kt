@@ -22,8 +22,7 @@ class ScannerActivity : ComponentActivity() {
             ScannerScreen(
                 nombreBD = nombreBD,
                 nombreNegocio = nombreNegocio,
-                usuario = usuario,
-                carrito = emptyList() // inicial vacío
+                usuario = usuario
             )
         }
     }

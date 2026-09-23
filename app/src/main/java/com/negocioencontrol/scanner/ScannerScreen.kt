@@ -36,7 +36,7 @@ import android.content.Intent
 import androidx.compose.ui.graphics.Color
 import com.negocioencontrol.MainActivity
 import androidx.compose.foundation.clickable
-
+import androidx.compose.runtime.saveable.rememberSaveable
 import com.negocioencontrol.subir_productos.SubirProductosActivity
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -44,22 +44,29 @@ import com.negocioencontrol.subir_productos.SubirProductosActivity
 fun ScannerScreen(
     nombreBD: String,
     nombreNegocio: String,
-    usuario: String,
-    carrito: List<ProductoCarrito>
-)  {
+    usuario: String
+) {
 
     val context = LocalContext.current
+
     var producto by remember { mutableStateOf<Producto?>(null) }
-    var carrito by remember { mutableStateOf(mutableListOf<ProductoCarrito>()) }
-    var cliente by remember { mutableStateOf("") }
-    var metodoPago by remember { mutableStateOf("Efectivo") }
 
+    var carrito by remember {
+        mutableStateOf(mutableListOf<ProductoCarrito>())
+    }
 
+    var cliente by rememberSaveable { mutableStateOf("") }
+    var correo by rememberSaveable { mutableStateOf("") }
+    var telefono by rememberSaveable { mutableStateOf("") }
+    var direccion by rememberSaveable { mutableStateOf("") }
+    var ruc by rememberSaveable { mutableStateOf("") }
 
-
-
-    val total = carrito.sumOf { it.precio * it.cantidad }
-
+    var tipoIdentificacion by rememberSaveable { mutableStateOf("07") }
+    var metodoPago by rememberSaveable { mutableStateOf("") }
+    var generarFactura by rememberSaveable { mutableStateOf(false) }
+    val total = carrito.sumOf {
+        it.precio * it.cantidad
+    }
     var codigoParaSubir by remember { mutableStateOf("") }
     var seccionActiva by remember { mutableStateOf("scanner") }
 
@@ -364,7 +371,25 @@ fun ScannerScreen(
                         nombreBD = nombreBD,
                         usuario = usuario,
                         carrito = carrito,
-                        total = total
+                        total = total,
+
+                        cliente = cliente,
+                        correo = correo,
+                        telefono = telefono,
+                        direccion = direccion,
+                        ruc = ruc,
+                        tipoIdentificacion = tipoIdentificacion,
+                        metodoPago = metodoPago,
+                        generarFactura = generarFactura,
+
+                        onClienteChange = { cliente = it },
+                        onCorreoChange = { correo = it },
+                        onTelefonoChange = { telefono = it },
+                        onDireccionChange = { direccion = it },
+                        onRucChange = { ruc = it },
+                        onTipoIdentificacionChange = { tipoIdentificacion = it },
+                        onMetodoPagoChange = { metodoPago = it },
+                        onGenerarFacturaChange = { generarFactura = it }
                     )
                 }
             }
@@ -802,30 +827,92 @@ fun buscarProductoAPI(codigo: String, nombreBD: String, context: Context, onResu
     queue.add(request)
 }
 
-fun agregarAlCarritoAPI(negocio: String, usuario: String, id_producto: String, cantidad: String, context: Context, onResult: () -> Unit) {
-    val url = "https://elpollovolantuso.com/negocioencontrol/api/agregar_carrito_api.php"
+fun agregarAlCarritoAPI(
+    negocio: String,
+    usuario: String,
+    id_producto: String,
+    cantidad: String,
+    context: Context,
+    onResult: () -> Unit
+) {
+
+    val url =
+        "https://elpollovolantuso.com/negocioencontrol/api/agregar_carrito_api.php"
+
     val queue = Volley.newRequestQueue(context)
-    val request = object : StringRequest(Method.POST, url,
+
+    val request = object : StringRequest(
+        Method.POST,
+        url,
+
         { response ->
+
             try {
+
                 val json = JSONObject(response)
-                Toast.makeText(context, json.getString("msg"), Toast.LENGTH_SHORT).show()
-                onResult()
-            } catch (e: Exception) { e.printStackTrace() }
+
+                val ok = json.optBoolean("ok", false)
+                val mensaje = json.optString("msg", "Sin mensaje")
+
+                if (ok) {
+
+                    Toast.makeText(
+                        context,
+                        mensaje,
+                        Toast.LENGTH_SHORT
+                    ).show()
+
+                    onResult()
+
+                } else {
+
+                    Toast.makeText(
+                        context,
+                        "No se pudo agregar: $mensaje",
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+
+            } catch (e: Exception) {
+
+                e.printStackTrace()
+
+                Toast.makeText(
+                    context,
+                    "Respuesta inválida del servidor:\n$response",
+                    Toast.LENGTH_LONG
+                ).show()
+            }
         },
-        { error -> error.printStackTrace(); Toast.makeText(context, "Error al agregar al carrito", Toast.LENGTH_SHORT).show() }
+
+        { error ->
+
+            error.printStackTrace()
+
+            val respuesta =
+                error.networkResponse?.data?.toString(Charsets.UTF_8)
+
+            Toast.makeText(
+                context,
+                "Error al agregar al carrito:\n${respuesta ?: error.message}",
+                Toast.LENGTH_LONG
+            ).show()
+        }
     ) {
-        override fun getParams(): MutableMap<String, String> = hashMapOf(
-            "negocio" to negocio,
-            "usuario" to usuario,
-            "id_producto" to id_producto,
-            "cantidad" to cantidad,
-            "estado" to "activo"
-        )
+
+        override fun getParams(): MutableMap<String, String> {
+
+            return hashMapOf(
+                "nombre_bd" to negocio,
+                "usuario" to usuario,
+                "id_producto" to id_producto,
+                "cantidad" to cantidad
+            )
+        }
     }
+
     queue.add(request)
 }
-
 fun actualizarCantidadCarritoAPI(
     negocio: String,
     usuario: String,
@@ -925,30 +1012,37 @@ fun obtenerCarritoAPI(negocio: String, usuario: String, context: Context, onResu
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-
 fun DatosCompraScreen(
     nombreBD: String,
     usuario: String,
     carrito: List<ProductoCarrito>,
-    total: Double
+    total: Double,
+
+    cliente: String,
+    correo: String,
+    telefono: String,
+    direccion: String,
+    ruc: String,
+    tipoIdentificacion: String,
+    metodoPago: String,
+    generarFactura: Boolean,
+
+    onClienteChange: (String) -> Unit,
+    onCorreoChange: (String) -> Unit,
+    onTelefonoChange: (String) -> Unit,
+    onDireccionChange: (String) -> Unit,
+    onRucChange: (String) -> Unit,
+    onTipoIdentificacionChange: (String) -> Unit,
+    onMetodoPagoChange: (String) -> Unit,
+    onGenerarFacturaChange: (Boolean) -> Unit
 ) {
-    //holita
+
     val context = LocalContext.current
-
-    var cliente by remember { mutableStateOf("") }
-    var correo by remember { mutableStateOf("") }
-    var telefono by remember { mutableStateOf("") }
-    var direccion by remember { mutableStateOf("") }
-    var ruc by remember { mutableStateOf("") }
-    var tipoIdentificacion by remember { mutableStateOf("07") }
-    var metodoPago by remember { mutableStateOf("") }
-
-    var generarFactura by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(12.dp) // 🔥 ajustado para que no se vea doble padding
+            .padding(12.dp)
     ) {
 
         Text(
@@ -960,7 +1054,7 @@ fun DatosCompraScreen(
 
         OutlinedTextField(
             value = cliente,
-            onValueChange = { cliente = it },
+            onValueChange = onClienteChange,
             label = { Text("Cliente (opcional)") },
             modifier = Modifier.fillMaxWidth()
         )
@@ -969,7 +1063,7 @@ fun DatosCompraScreen(
 
         OutlinedTextField(
             value = correo,
-            onValueChange = { correo = it },
+            onValueChange = onCorreoChange,
             label = { Text("Correo electrónico") },
             modifier = Modifier.fillMaxWidth()
         )
@@ -978,7 +1072,7 @@ fun DatosCompraScreen(
 
         OutlinedTextField(
             value = telefono,
-            onValueChange = { telefono = it },
+            onValueChange = onTelefonoChange,
             label = { Text("Teléfono") },
             modifier = Modifier.fillMaxWidth()
         )
@@ -987,7 +1081,7 @@ fun DatosCompraScreen(
 
         OutlinedTextField(
             value = direccion,
-            onValueChange = { direccion = it },
+            onValueChange = onDireccionChange,
             label = { Text("Dirección") },
             modifier = Modifier.fillMaxWidth()
         )
@@ -996,7 +1090,7 @@ fun DatosCompraScreen(
 
         OutlinedTextField(
             value = ruc,
-            onValueChange = { ruc = it },
+            onValueChange = onRucChange,
             label = { Text("RUC / Cédula") },
             modifier = Modifier.fillMaxWidth()
         )
@@ -1007,27 +1101,45 @@ fun DatosCompraScreen(
 
         Column {
 
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+
                 RadioButton(
                     selected = metodoPago == "Efectivo",
-                    onClick = { metodoPago = "Efectivo" }
+                    onClick = {
+                        onMetodoPagoChange("Efectivo")
+                    }
                 )
+
                 Text("Efectivo")
             }
 
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+
                 RadioButton(
                     selected = metodoPago == "transferencia",
-                    onClick = { metodoPago = "transferencia" }
+                    onClick = {
+                        onMetodoPagoChange("transferencia")
+                    }
                 )
+
                 Text("transferencia")
             }
 
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+
                 RadioButton(
                     selected = metodoPago == "Credito",
-                    onClick = { metodoPago = "Credito" }
+                    onClick = {
+                        onMetodoPagoChange("Credito")
+                    }
                 )
+
                 Text("Credito")
             }
         }
@@ -1037,46 +1149,80 @@ fun DatosCompraScreen(
         Text("Tipo de identificación")
 
         Column {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+
+            Row(
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+
                 RadioButton(
                     selected = tipoIdentificacion == "05",
-                    onClick = { tipoIdentificacion = "05" }
+                    onClick = {
+                        onTipoIdentificacionChange("05")
+                    }
                 )
+
                 Text("Cédula")
             }
 
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+
                 RadioButton(
                     selected = tipoIdentificacion == "04",
-                    onClick = { tipoIdentificacion = "04" }
+                    onClick = {
+                        onTipoIdentificacionChange("04")
+                    }
                 )
+
                 Text("RUC")
             }
 
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+
                 RadioButton(
                     selected = tipoIdentificacion == "06",
-                    onClick = { tipoIdentificacion = "06" }
+                    onClick = {
+                        onTipoIdentificacionChange("06")
+                    }
                 )
+
                 Text("Pasaporte")
             }
 
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+
                 RadioButton(
                     selected = tipoIdentificacion == "07",
-                    onClick = { tipoIdentificacion = "07" }
+                    onClick = {
+                        onTipoIdentificacionChange("07")
+                    }
                 )
+
                 Text("Consumidor Final")
             }
         }
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        // =========================
+        // FACTURA ELECTRÓNICA
+        // =========================
+        Row(
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+
             Checkbox(
                 checked = generarFactura,
-                onCheckedChange = { generarFactura = it }
+                onCheckedChange = {
+                    onGenerarFacturaChange(it)
+                }
             )
+
             Text("Generar factura electrónica")
         }
 
@@ -1093,11 +1239,18 @@ fun DatosCompraScreen(
             onClick = {
 
                 if (carrito.isEmpty()) {
-                    Toast.makeText(context, "El carrito está vacío", Toast.LENGTH_SHORT).show()
+
+                    Toast.makeText(
+                        context,
+                        "El carrito está vacío",
+                        Toast.LENGTH_SHORT
+                    ).show()
+
                     return@Button
                 }
 
                 if (generarFactura) {
+
                     if (
                         cliente.isBlank() ||
                         correo.isBlank() ||
@@ -1105,28 +1258,35 @@ fun DatosCompraScreen(
                         direccion.isBlank() ||
                         ruc.isBlank()
                     ) {
+
                         Toast.makeText(
                             context,
                             "Complete todos los datos para la factura",
                             Toast.LENGTH_LONG
                         ).show()
+
                         return@Button
                     }
                 }
 
                 if (metodoPago.isBlank()) {
+
                     Toast.makeText(
                         context,
                         "Seleccione método de pago",
                         Toast.LENGTH_SHORT
                     ).show()
+
                     return@Button
                 }
 
                 registrarVentaAPI(
                     negocio = nombreBD,
                     vendedor = usuario,
-                    cliente = if (cliente.isBlank()) "Consumidor Final" else cliente,
+                    cliente = if (cliente.isBlank())
+                        "Consumidor Final"
+                    else
+                        cliente,
                     correo = correo,
                     telefono = telefono,
                     direccion = direccion,
@@ -1139,13 +1299,12 @@ fun DatosCompraScreen(
                     generarFactura = generarFactura,
                     context = context
                 )
-
             },
             modifier = Modifier.fillMaxWidth()
         ) {
+
             Text("FINALIZAR COMPRA")
         }
-
     }
 }
 fun registrarVentaAPI(
@@ -1405,4 +1564,3 @@ fun eliminarCarritoUsuario(
     queue.add(request)
 
 }
-
