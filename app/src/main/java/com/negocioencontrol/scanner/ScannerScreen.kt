@@ -1,10 +1,9 @@
 package com.negocioencontrol.scanner
 
-import android.app.Activity
+
 import android.content.Context
 import android.widget.Toast
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
+
 import androidx.compose.foundation.layout.*
 
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -17,7 +16,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.android.volley.toolbox.StringRequest
 import com.android.volley.toolbox.Volley
-import com.google.zxing.integration.android.IntentIntegrator
+
 import org.json.JSONObject
 import org.json.JSONArray
 
@@ -38,6 +37,16 @@ import com.negocioencontrol.MainActivity
 import androidx.compose.foundation.clickable
 import androidx.compose.runtime.saveable.rememberSaveable
 import com.negocioencontrol.subir_productos.SubirProductosActivity
+import androidx.compose.runtime.DisposableEffect
+
+import android.app.Activity
+import android.app.Application
+import android.os.Bundle
+
+import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 
@@ -68,7 +77,7 @@ fun ScannerScreen(
         it.precio * it.cantidad
     }
     var codigoParaSubir by remember { mutableStateOf("") }
-    var seccionActiva by remember { mutableStateOf("scanner") }
+    var seccionActiva by remember { mutableStateOf("carrito") }
 
     fun recargarCarrito() {
         obtenerCarritoAPI(nombreBD, usuario, context) {
@@ -76,82 +85,55 @@ fun ScannerScreen(
         }
     }
 
-    LaunchedEffect(Unit) { recargarCarrito() }
+    LaunchedEffect(nombreBD, usuario) {
+        recargarCarrito()
+    }
 
-    lateinit var iniciarScanner: () -> Unit
 
-    val launcher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.StartActivityForResult()
-    ) { result ->
+    val lifecycleOwner = LocalLifecycleOwner.current
 
-        val intentResult = IntentIntegrator.parseActivityResult(result.resultCode, result.data)
+    DisposableEffect(lifecycleOwner) {
 
-        if (intentResult != null && intentResult.contents != null) {
+        val observer = LifecycleEventObserver { _, event ->
 
-            val codigo = intentResult.contents.trim()
-
-            if (codigo.isEmpty()) {
-                iniciarScanner()
-                return@rememberLauncherForActivityResult
+            if (event == Lifecycle.Event.ON_RESUME) {
+                recargarCarrito()
             }
+        }
 
-            buscarProductoAPI(codigo, nombreBD, context) { prod ->
+        lifecycleOwner.lifecycle.addObserver(observer)
 
-                if (prod != null) {
-
-                    producto = prod
-
-                    agregarAlCarritoAPI(nombreBD, usuario, prod.id, "1", context) {
-                        recargarCarrito()
-                        seccionActiva = "carrito"
-
-                        // ✅ SOLO AQUÍ sigue escaneando
-                        iniciarScanner()
-                    }
-
-                } else {
-
-                    // ❌ NO relanzar scanner aquí
-
-                    android.app.AlertDialog.Builder(context)
-                        .setTitle("Producto no encontrado")
-                        .setMessage("¿Qué deseas hacer?")
-
-                        .setPositiveButton("Agregar producto") { _, _ ->
-
-                            val intent = Intent(context, SubirProductosActivity::class.java)
-
-                            intent.putExtra("codigo_barra", codigo)
-                            intent.putExtra("nombre_bd", nombreBD)
-
-                            context.startActivity(intent)
-                        }
-
-                        .setNegativeButton("Seguir escaneando") { _, _ ->
-                            iniciarScanner()
-                        }
-
-                        .show()
-                }
-
-            }
-
-        } else if (result.resultCode == Activity.RESULT_CANCELED) {
-            Toast.makeText(context, "Escaneo cancelado", Toast.LENGTH_SHORT).show()
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
         }
     }
 
+
+    lateinit var iniciarScanner: () -> Unit
+
     iniciarScanner = {
+
         val activity = context as? Activity
 
         if (activity != null) {
-            val integrator = IntentIntegrator(activity)
-            integrator.setCaptureActivity(CustomScannerActivity::class.java)
-            integrator.setDesiredBarcodeFormats(IntentIntegrator.ALL_CODE_TYPES)
-            integrator.setPrompt("Escanea el código de barras")
-            integrator.setBeepEnabled(true)
-            integrator.setOrientationLocked(true)
-            launcher.launch(integrator.createScanIntent())
+
+            val intent = Intent(
+                context,
+                CustomScannerActivity::class.java
+            ).apply {
+
+                putExtra(
+                    "nombre_bd",
+                    nombreBD
+                )
+
+                putExtra(
+                    "usuario",
+                    usuario
+                )
+            }
+
+            activity.startActivity(intent)
         }
     }
 
@@ -166,26 +148,17 @@ fun ScannerScreen(
         // 🔹 AGREGAR PRODUCTOS
         // =========================
         Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable {
-                    seccionActiva = if (seccionActiva == "scanner") "" else "scanner"
-                },
+            modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(18.dp),
             elevation = CardDefaults.cardElevation(8.dp)
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
 
                 Text(
-                    if (seccionActiva == "scanner") "Agregar productos ▲" else "Agregar productos ▼",
+                    "Buscar productos",
                     style = MaterialTheme.typography.titleLarge
                 )
 
-                AnimatedVisibility(
-                    visible = seccionActiva == "scanner",
-                    enter = expandVertically(),
-                    exit = shrinkVertically()
-                ) {
 
                     Column {
 
@@ -209,26 +182,87 @@ fun ScannerScreen(
                             recargarCarrito = { recargarCarrito() }
                         )
                     }
-                }
+
             }
         }
 
         Spacer(modifier = Modifier.height(16.dp))
 
         // =========================
-        // 🔹 PRODUCTO ESCANEADO
         // =========================
+// 🔹 PRODUCTO ESCANEADO
+// =========================
         producto?.let { p ->
 
             Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(18.dp)
+                modifier = Modifier
+                    .fillMaxWidth(),
+                shape = RoundedCornerShape(18.dp),
+                elevation = CardDefaults.cardElevation(8.dp)
             ) {
-                Column(modifier = Modifier.padding(16.dp)) {
 
-                    Text(p.producto)
-                    Text("Stock: ${p.stock}")
-                    Text("$${p.precio}")
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(14.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+
+                    // =========================
+                    // IMAGEN DEL PRODUCTO
+                    // =========================
+                    val imagenFinal =
+                        if (p.imagen.startsWith("http")) {
+                            p.imagen
+                        } else {
+                            "https://elpollovolantuso.com/negocioencontrol/assets/images/${p.imagen}"
+                        }
+
+                    AsyncImage(
+                        model = imagenFinal,
+                        contentDescription = p.producto,
+                        modifier = Modifier
+                            .size(100.dp)
+                            .clip(RoundedCornerShape(14.dp))
+                    )
+
+                    Spacer(modifier = Modifier.width(14.dp))
+
+                    // =========================
+                    // INFORMACIÓN
+                    // =========================
+                    Column(
+                        modifier = Modifier.weight(1f)
+                    ) {
+
+                        Text(
+                            text = "Producto encontrado",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = Color(0xFF16A34A)
+                        )
+
+                        Spacer(modifier = Modifier.height(4.dp))
+
+                        Text(
+                            text = p.producto,
+                            style = MaterialTheme.typography.titleMedium
+                        )
+
+                        Spacer(modifier = Modifier.height(6.dp))
+
+                        Text(
+                            text = "Stock: ${p.stock}",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+
+                        Spacer(modifier = Modifier.height(4.dp))
+
+                        Text(
+                            text = "$${"%.2f".format(p.precio.toDoubleOrNull() ?: 0.0)}",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = Color(0xFF059669)
+                        )
+                    }
                 }
             }
 
