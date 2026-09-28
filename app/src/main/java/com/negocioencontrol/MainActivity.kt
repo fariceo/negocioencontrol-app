@@ -243,7 +243,7 @@ fun MainScreen(
 
                 Spacer(modifier = Modifier.width(8.dp))
 
-                Text("Ver carrito")
+                Text("Punto de Venta")
             }
 
             Button(

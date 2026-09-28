@@ -6,14 +6,14 @@ plugins {
 
 android {
     namespace = "com.negocioencontrol"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.negocioencontrol"
         minSdk = 21
-        targetSdk = 35
+        targetSdk = 36
         //aqui cambiamos la version para playconsole
-        versionCode = 13
+        versionCode = 18
         versionName = "1.13"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
